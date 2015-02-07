@@ -1,0 +1,6 @@
+file_id - primary key, autoincrement
+file_path
+song_id - foreign key -> songs, song_id
+song_artist
+song_name
+song_album
