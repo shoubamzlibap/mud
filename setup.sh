@@ -35,6 +35,10 @@ dejavu_config = {
      },
     'fingerprint_limit' : 30,
  }
+
+# base directory for music files
+music_base_dir = '/tmp'
+
 EOF
     
 }
