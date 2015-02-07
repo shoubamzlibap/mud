@@ -3,6 +3,10 @@
 
 # install dependencies
 install_dependencies(){
+    # enable Fusion repos if not already done
+    yum repolist |grep Fusion >/dev/null || sudo yum localinstall \
+        --nogpgcheck http://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+        http://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
     sudo yum install numpy scipy python-matplotlib ffmpeg portaudio-devel gcc mariadb-server
     sudo pip install --allow-external PyAudio --allow-unverified PyAudio PyAudio
     sudo pip install pydub 
@@ -27,8 +31,9 @@ dejavu_config = {
          'host': '127.0.0.1',
          'user': '${user_name}',
          'passwd': '${user_pw}', 
-         'db': ${db_name},
-     }
+         'db': '${db_name}',
+     },
+    'fingerprint_limit' : 30,
  }
 EOF
     
@@ -50,5 +55,5 @@ setup_database(){
     
 }
 
-#install_dependencies
+install_dependencies
 setup_database

@@ -1,2 +1,5 @@
 settings.py
 .*.swp
+*.pyc
+flush_db.sh
+todo
