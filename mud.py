@@ -11,6 +11,16 @@ import argparse
 import os
 import settings
 
+#from dejavu import Dejavu
+#from dejavu.recognize import FileRecognizer
+from dejavu.database_sql import SQLDatabase
+
+class MudDatabase(SQLDatabase):
+    """
+    Shamelessly stealing database code from dejavu.
+    """
+    pass
+
 def build_collection():
     """
     Go through the collection song by song and add them to the
@@ -58,10 +68,7 @@ def scan_files():
     for root, sub_folders, files in os.walk(settings.music_base_dir):
         for f in files:
             if f.endswith('.mp3') or f.endswith('.MP3'):
-                file_list.append(os.path.join(root,f))
-    iprint('Adding scanned files to database')
-    for f i in file_list:
-        add_song_file(f)
+                add_song_file(os.path.join(root,f))
 
 def add_song_file(song_file):
     """
