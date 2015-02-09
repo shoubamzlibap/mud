@@ -5,7 +5,7 @@
 # in your music collection.
 
 # Author: Isaac Hailperin <isaac.hailperin@gmail.com>
-VERSION=0.1 # MAR-2015 | isaac | initial version
+VERSION=0.1 # APR-2015 | isaac | initial version
 
 import argparse
 import os
@@ -87,6 +87,15 @@ class MudDatabase(SQLDatabase):
         SELECT %s FROM %s WHERE %s=%%s
         """ %(FIELD_FILE_PATH, SONGFILES_TABLENAME, FIELD_SONG_ID)
 
+
+    SELECT_ALL_FILES = """ SELECT %s FROM %s;
+        """ % (FIELD_FILE_PATH, SONGFILES_TABLENAME)
+
+    # deletes
+    DELETE_SONG_FILE = """
+        DELETE FROM %s WHERE %s=%%s 
+        ;""" %(SONGFILES_TABLENAME, FIELD_FILE_PATH)
+
     def __init__(self, **options):
         """
         Setup Database code
@@ -147,14 +156,21 @@ class MudDatabase(SQLDatabase):
             for row in cur:
                 yield row
 
-#    def execute_query(self,query):
-#        """
-#        Execute an arbitrary query
-#        """
-#        with self.cursor(cursor_type=DictCursor) as cur:
-#            cur.execute(query)
-#            for row in cur:
-#                yield row
+    def select_all_song_files(self):
+        """
+        Get all song files stored in db.
+        """
+        with self.cursor(cursor_type=DictCursor) as cur:
+            cur.execute(self.SELECT_ALL_FILES, ())
+            for row in cur:
+                yield row
+
+    def delete_song_file(self, path):
+        """
+        Delete path from database.
+        """
+        with self.cursor() as cur:
+            cur.execute(self.DELETE_SONG_FILE, (path))
 
 
 # object for usage by functions below
@@ -173,10 +189,7 @@ def build_collection():
     """
     iprint('Building collection')
     for song_f in list_new_files():
-        print
-        print song_f
         song_id = get_song_id(song_f)
-        print song_id
         add_to_collection(song_f, song_id)
 
 def add_to_collection(song_file, song_id):
@@ -236,7 +249,6 @@ def get_duplicates():
     return song_ids (together with the song_files) that have more
     then one song_file pointing to them.
     """
-# TODO: fail if no files with song_ids in database
     duplicates = []
     for sid in db.select_song_ids():
         files = []
@@ -251,11 +263,23 @@ def print_duplicates():
     Print duplicates to std out
     """
     dups = get_duplicates()
-    for sfiles in dups:
-        print
-        for f in sfiles:
-            print f['file_path']
-    
+    if dups:
+        for sfiles in dups:
+            print
+            for f in sfiles:
+                print f['file_path']
+    else:
+        print 'No duplicates found'
+
+def check_files():
+    """
+    Go through songfiles table and check if each file still exists on disk.
+    """
+    iprint('Checking all songs in database still exists on disk.')
+    for song_file in db.select_all_song_files():
+        if not os.path.isfile(song_file['file_path']):
+            iprint('Deleting ' + song_file['file_path'] + ' from database.')
+            db.delete_song_file(song_file['file_path'])
 
 def iprint(message, level=2):
     """
@@ -273,28 +297,38 @@ def iprint(message, level=2):
 ###
 if __name__ == '__main__':
     
-# TODO: add option to verify files in data - do they still exist? If not, delete
     parser = argparse.ArgumentParser(
         description = 'Check for duplicates in your music collection. mud will find \
             all duplicates, even if the file is encoded at a different bitrate. And \
             of course it won\'t be fooled by tags :)')
     parser.add_argument('-s','--scan',
         action = 'store_true',
-        help = 'Scan music directory for new files')
+        help = 'Scan music directory for new files.')
     parser.add_argument('-b','--build-collection',
         action = 'store_true',
-        help = 'Go through collection and build database')
+        help = 'Go through collection and build database of audio fingerprints.')
     parser.add_argument('-p','--print-dupes',
         action = 'store_true',
-        help = 'print all duplicates found')
+        help = 'Print all duplicates found.')
+    parser.add_argument('-c','--check',
+        action = 'store_true',
+        help = 'Check if files in database still exist on disk.')
+    parser.add_argument('-v','--version',
+        action = 'store_true',
+        help = 'Display version.')
     args = parser.parse_args()
 
     db.setup()
+
+    if args.version:
+        print VERSION
+        exit(0)
     if args.scan:
         scan_files()
     if args.build_collection:
         build_collection()    
+    if args.check:
+        check_files()
     if args.print_dupes:
         print_duplicates()
-
 
