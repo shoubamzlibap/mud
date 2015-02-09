@@ -11,6 +11,7 @@ import argparse
 import os
 from MySQLdb import IntegrityError
 import warnings
+import eyed3
 import settings
 
 from dejavu import Dejavu
@@ -30,7 +31,7 @@ class MudDatabase(SQLDatabase):
     FIELD_FILE_PATH = 'file_path'
     FIELD_SONG_ID = SQLDatabase.FIELD_SONG_ID  # foreign key -> songs, song_id
     FIELD_SONG_ARTIST = 'song_artist'
-    FIELD_SONG_NAME = 'song_name'
+    FIELD_SONG_TITLE = 'song_title'
     FIELD_SONG_ALBUM = 'song_album'
 
     # creates
@@ -51,7 +52,7 @@ class MudDatabase(SQLDatabase):
         FIELD_FILE_PATH, 
         FIELD_SONG_ID,
         FIELD_SONG_ARTIST,
-        FIELD_SONG_NAME,
+        FIELD_SONG_TITLE,
         FIELD_SONG_ALBUM,
         FIELD_FILE_PATH, FIELD_SONG_ID, # index
         FIELD_FILE_ID, FIELD_FILE_PATH,  # uniq keys
@@ -68,8 +69,10 @@ class MudDatabase(SQLDatabase):
 
     # updates
     UPDATE_SONGFILE = """
-        UPDATE %s SET %s=%%s
+        UPDATE %s SET %s=%%s,
+        %s=%%s, %s=%%s, %s=%%s
         WHERE %s=%%s;""" % (SONGFILES_TABLENAME, FIELD_SONG_ID, 
+        FIELD_SONG_ARTIST, FIELD_SONG_TITLE, FIELD_SONG_ALBUM,
         FIELD_FILE_PATH
     )
 
@@ -84,9 +87,10 @@ class MudDatabase(SQLDatabase):
         ;""" %(FIELD_SONG_ID, SQLDatabase.SONGS_TABLENAME)
 
     SELECT_FILE_BY_ID = """ 
-        SELECT %s FROM %s WHERE %s=%%s
-        """ %(FIELD_FILE_PATH, SONGFILES_TABLENAME, FIELD_SONG_ID)
-
+        SELECT %s,%s,
+        %s,%s FROM %s WHERE %s=%%s
+        """ %(FIELD_FILE_PATH, FIELD_SONG_ARTIST, 
+        FIELD_SONG_TITLE, FIELD_SONG_ALBUM, SONGFILES_TABLENAME, FIELD_SONG_ID)
 
     SELECT_ALL_FILES = """ SELECT %s FROM %s;
         """ % (FIELD_FILE_PATH, SONGFILES_TABLENAME)
@@ -122,12 +126,12 @@ class MudDatabase(SQLDatabase):
         with self.cursor() as cur:
             cur.execute(self.INSERT_SONGFILE, (file_path))
 
-    def update_songfile(self, file_path, song_id):
+    def update_songfile(self, file_path, song_id, artist, title, album):
         """
         Update a songfile with its song id
         """
         with self.cursor() as cur:
-            cur.execute(self.UPDATE_SONGFILE, (song_id, file_path))
+            cur.execute(self.UPDATE_SONGFILE, (song_id, artist, title, album, file_path))
 
     def select_new_files(self):
         """
@@ -200,8 +204,11 @@ def add_to_collection(song_file, song_id):
     song_id: int, foreign key to songs database
 
     """
-#TODO: add mp3 tags to database, integrate mp3 tags in print function
-    db.update_songfile(song_file, song_id)
+    audio_file = eyed3.load(song_file)
+    artist = audio_file.tag.artist.strip()
+    title = audio_file.tag.title.strip()
+    album = audio_file.tag.album.strip()
+    db.update_songfile(song_file, song_id, artist, title, album)
 
 def list_new_files():
     """
@@ -267,7 +274,7 @@ def print_duplicates():
         for sfiles in dups:
             print
             for f in sfiles:
-                print f['file_path']
+                print f['song_title'] + ' - ' + f['file_path']
     else:
         print 'No duplicates found'
 
