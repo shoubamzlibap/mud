@@ -36,7 +36,7 @@ cd mud
 
 The `setup.sh` script will install several packages via yum, and also some python packages via pip that
 are not yet in the official fedora repos. 
-`setup.sh` will create a database and a user for mud and dejavu.
+`setup.sh` will create a database and a database user for mud and dejavu.
 It also creates a `settings.py` file, which contains among others a variable called `music_base_dir`, which
 should be set accordingly.
 
