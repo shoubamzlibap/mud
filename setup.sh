@@ -7,7 +7,7 @@ install_dependencies(){
     yum repolist |grep Fusion >/dev/null || sudo yum localinstall \
         --nogpgcheck http://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
         http://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-    sudo yum install numpy scipy python-matplotlib ffmpeg portaudio-devel gcc mariadb-server
+    sudo yum install numpy scipy python-matplotlib ffmpeg portaudio-devel gcc mariadb-server python-eyed3
     sudo pip install --allow-external PyAudio --allow-unverified PyAudio PyAudio
     sudo pip install pydub 
     sudo pip install PyDejavu
