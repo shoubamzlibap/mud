@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-# mud.py - music deduplicator 
-# Check for duplicates (e.g. differently encoded files of the same song) 
+# mud.py - music deduplicator
+# Check for duplicates (e.g. differently encoded files of the same song)
 # in your music collection.
 
 # Author: Isaac Hailperin <isaac.hailperin@gmail.com>
-VERSION=0.1 # APR-2015 | isaac | initial version
+VERSION = 0.1  # APR-2015 | isaac | initial version
 
 import argparse
 import os
@@ -15,9 +15,9 @@ import eyed3
 import settings
 
 from dejavu import Dejavu
-#from dejavu.database_sql import Database, SQLDatabase, 
 from dejavu.database_sql import SQLDatabase, cursor_factory, DictCursor
 from dejavu.recognize import FileRecognizer
+
 
 class MudDatabase(SQLDatabase):
     """
@@ -27,7 +27,7 @@ class MudDatabase(SQLDatabase):
     SONGFILES_TABLENAME = "songfiles"
 
     # fields
-    FIELD_FILE_ID = 'file_id' # primary key, autoincrement
+    FIELD_FILE_ID = 'file_id'  # primary key, autoincrement
     FIELD_FILE_PATH = 'file_path'
     FIELD_SONG_ID = SQLDatabase.FIELD_SONG_ID  # foreign key -> songs, song_id
     FIELD_SONG_ARTIST = 'song_artist'
@@ -47,21 +47,21 @@ class MudDatabase(SQLDatabase):
          UNIQUE KEY `unique_constraint` (%s, %s),
          FOREIGN KEY (%s) REFERENCES %s(%s) ON DELETE CASCADE
     ) ENGINE=INNODB;""" % (
-        SONGFILES_TABLENAME, 
+        SONGFILES_TABLENAME,
         FIELD_FILE_ID,
-        FIELD_FILE_PATH, 
+        FIELD_FILE_PATH,
         FIELD_SONG_ID,
         FIELD_SONG_ARTIST,
         FIELD_SONG_TITLE,
         FIELD_SONG_ALBUM,
-        FIELD_FILE_PATH, FIELD_SONG_ID, # index
+        FIELD_FILE_PATH, FIELD_SONG_ID,  # index
         FIELD_FILE_ID, FIELD_FILE_PATH,  # uniq keys
-        FIELD_SONG_ID, SQLDatabase.SONGS_TABLENAME, FIELD_SONG_ID# forein key
+        FIELD_SONG_ID, SQLDatabase.SONGS_TABLENAME, FIELD_SONG_ID  # forein key
 
     )
 
     # inserts
-    INSERT_SONGFILE = """ 
+    INSERT_SONGFILE = """
         INSERT INTO %s (%s) values
         (%%s); """ % (
         SONGFILES_TABLENAME, FIELD_FILE_PATH
@@ -71,25 +71,24 @@ class MudDatabase(SQLDatabase):
     UPDATE_SONGFILE = """
         UPDATE %s SET %s=%%s,
         %s=%%s, %s=%%s, %s=%%s
-        WHERE %s=%%s;""" % (SONGFILES_TABLENAME, FIELD_SONG_ID, 
+        WHERE %s=%%s;""" % (SONGFILES_TABLENAME, FIELD_SONG_ID,
         FIELD_SONG_ARTIST, FIELD_SONG_TITLE, FIELD_SONG_ALBUM,
-        FIELD_FILE_PATH
-    )
+        FIELD_FILE_PATH)
 
     # selects
     SELECT_NEW_FILES = """
         SELECT %s FROM %s WHERE %s is NULL;
-        """ %(
+        """ % (
         FIELD_FILE_PATH, SONGFILES_TABLENAME, FIELD_SONG_ID
     )
 
-    SELECT_SONG_IDS = """ SELECT %s FROM %s 
-        ;""" %(FIELD_SONG_ID, SQLDatabase.SONGS_TABLENAME)
+    SELECT_SONG_IDS = """ SELECT %s FROM %s
+        ;""" % (FIELD_SONG_ID, SQLDatabase.SONGS_TABLENAME)
 
-    SELECT_FILE_BY_ID = """ 
+    SELECT_FILE_BY_ID = """
         SELECT %s,%s,
         %s,%s FROM %s WHERE %s=%%s
-        """ %(FIELD_FILE_PATH, FIELD_SONG_ARTIST, 
+        """ % (FIELD_FILE_PATH, FIELD_SONG_ARTIST,
         FIELD_SONG_TITLE, FIELD_SONG_ALBUM, SONGFILES_TABLENAME, FIELD_SONG_ID)
 
     SELECT_ALL_FILES = """ SELECT %s FROM %s;
@@ -97,8 +96,8 @@ class MudDatabase(SQLDatabase):
 
     # deletes
     DELETE_SONG_FILE = """
-        DELETE FROM %s WHERE %s=%%s 
-        ;""" %(SONGFILES_TABLENAME, FIELD_FILE_PATH)
+        DELETE FROM %s WHERE %s=%%s
+        ;""" % (SONGFILES_TABLENAME, FIELD_FILE_PATH)
 
     def __init__(self, **options):
         """
@@ -295,7 +294,7 @@ def iprint(message, level=2):
     message: string, a message to be printed
     level: int, a verbosity level
     """
-    general_level = 1 # should be moved to settings, and accessible via cli
+    general_level = 1  # should be moved to settings, and accessible via cli
     if level > general_level:
         print message
 
@@ -333,7 +332,7 @@ if __name__ == '__main__':
     if args.scan:
         scan_files()
     if args.build_collection:
-        build_collection()    
+        build_collection()
     if args.check:
         check_files()
     if args.print_dupes:
