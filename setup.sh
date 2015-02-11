@@ -11,6 +11,8 @@ install_dependencies(){
     sudo pip install --allow-external PyAudio --allow-unverified PyAudio PyAudio
     sudo pip install pydub 
     sudo pip install PyDejavu
+    # configure mariadb
+    sed -i '/\[mysqld\]/a  innodb_file_per_table = 1' /etc/my.cnf.d/server.cnf
     sudo mysql_secure_installation
     sudo systemctl enable mariadb
     sudo systemctl start mariadb
@@ -50,6 +52,7 @@ setup_database(){
     echo "able to read the MariaDB root password from the process list"
     echo
     read -ers -p "Please enter MariaDB root password:" rootpw
+    echo
     db_name="dejavu"
     mysql -u root --password=${rootpw} -e "CREATE DATABASE IF NOT EXISTS ${db_name};"
     user_name="dejavu-admin"
@@ -59,5 +62,29 @@ setup_database(){
     
 }
 
-install_dependencies
-setup_database
+print_help(){
+    cat <<EOF
+Setup everything needed to use mud.
+
+usage: setup.sh [--help] [--install|--setup]
+
+If no options are given, setup.sh will install dependencies and do 
+the database setup.
+
+Optins:
+
+    --help      Print this message and exit.
+    --install   Install dependencies
+    --setup     Do the database setup
+
+EOF
+}
+
+case $1 in
+    --install) install_dependencies ;;
+    --setup) setup_database ;;
+    --help) print_help ; exit 0 ;;
+    *)
+        install_dependencies
+        setup_database ;;
+esac
