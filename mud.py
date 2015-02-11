@@ -20,6 +20,7 @@ from dejavu.recognize import FileRecognizer
 
 
 class MudDatabase(SQLDatabase):
+
     """
     Shamelessly stealing database code from dejavu.
     """
@@ -72,8 +73,8 @@ class MudDatabase(SQLDatabase):
         UPDATE %s SET %s=%%s,
         %s=%%s, %s=%%s, %s=%%s
         WHERE %s=%%s;""" % (SONGFILES_TABLENAME, FIELD_SONG_ID,
-        FIELD_SONG_ARTIST, FIELD_SONG_TITLE, FIELD_SONG_ALBUM,
-        FIELD_FILE_PATH)
+                            FIELD_SONG_ARTIST, FIELD_SONG_TITLE, FIELD_SONG_ALBUM,
+                            FIELD_FILE_PATH)
 
     # selects
     SELECT_NEW_FILES = """
@@ -89,7 +90,7 @@ class MudDatabase(SQLDatabase):
         SELECT %s,%s,
         %s,%s FROM %s WHERE %s=%%s
         """ % (FIELD_FILE_PATH, FIELD_SONG_ARTIST,
-        FIELD_SONG_TITLE, FIELD_SONG_ALBUM, SONGFILES_TABLENAME, FIELD_SONG_ID)
+               FIELD_SONG_TITLE, FIELD_SONG_ALBUM, SONGFILES_TABLENAME, FIELD_SONG_ID)
 
     SELECT_ALL_FILES = """ SELECT %s FROM %s;
         """ % (FIELD_FILE_PATH, SONGFILES_TABLENAME)
@@ -104,7 +105,6 @@ class MudDatabase(SQLDatabase):
         Setup Database code
         """
         self.cursor = cursor_factory(**options)
-
 
     def setup(self):
         """
@@ -130,7 +130,8 @@ class MudDatabase(SQLDatabase):
         Update a songfile with its song id
         """
         with self.cursor() as cur:
-            cur.execute(self.UPDATE_SONGFILE, (song_id, artist, title, album, file_path))
+            cur.execute(self.UPDATE_SONGFILE, (
+                song_id, artist, title, album, file_path))
 
     def select_new_files(self):
         """
@@ -178,8 +179,9 @@ class MudDatabase(SQLDatabase):
 
 # object for usage by functions below
 warnings.filterwarnings('ignore')
-db = MudDatabase(**settings.dejavu_config.get('database',{}))
+db = MudDatabase(**settings.dejavu_config.get('database', {}))
 djv = Dejavu(settings.dejavu_config)
+
 
 def build_collection():
     """
@@ -195,6 +197,7 @@ def build_collection():
         song_id = get_song_id(song_f)
         add_to_collection(song_f, song_id)
 
+
 def add_to_collection(song_file, song_id):
     """
     Add song_file to collection, with foreign key song_id
@@ -209,12 +212,14 @@ def add_to_collection(song_file, song_id):
     album = audio_file.tag.album.strip()
     db.update_songfile(song_file, song_id, artist, title, album)
 
+
 def list_new_files():
     """
     Return a list of filenames from the database that are not yet fingerprinted.
     """
     for f in db.select_new_files():
         yield f['file_path']
+
 
 def get_song_id(song_file):
     """
@@ -225,7 +230,8 @@ def get_song_id(song_file):
     djv.fingerprint_file(song_file)
     song = djv.recognize(FileRecognizer, song_file)
     return song['song_id']
-    
+
+
 def scan_files():
     """
     Scan for music files and add them to the database
@@ -235,7 +241,8 @@ def scan_files():
     for root, sub_folders, files in os.walk(settings.music_base_dir):
         for f in files:
             if f.endswith('.mp3') or f.endswith('.MP3'):
-                add_song_file(os.path.join(root,f))
+                add_song_file(os.path.join(root, f))
+
 
 def add_song_file(song_file):
     """
@@ -245,6 +252,7 @@ def add_song_file(song_file):
         db.insert_songfile(song_file)
     except IntegrityError:
         pass
+
 
 def get_duplicates():
     """
@@ -264,6 +272,7 @@ def get_duplicates():
             duplicates.append(files)
     return duplicates
 
+
 def print_duplicates():
     """
     Print duplicates to std out
@@ -277,6 +286,7 @@ def print_duplicates():
     else:
         print 'No duplicates found'
 
+
 def check_files():
     """
     Go through songfiles table and check if each file still exists on disk.
@@ -287,10 +297,11 @@ def check_files():
             iprint('Deleting ' + song_file['file_path'] + ' from database.')
             db.delete_song_file(song_file['file_path'])
 
+
 def iprint(message, level=2):
     """
     Print messages, honoring a verbosity level
-    
+
     message: string, a message to be printed
     level: int, a verbosity level
     """
@@ -298,30 +309,30 @@ def iprint(message, level=2):
     if level > general_level:
         print message
 
-###
+#
 # CLI
-###
+#
 if __name__ == '__main__':
-    
+
     parser = argparse.ArgumentParser(
-        description = 'Check for duplicates in your music collection. mud will find \
+        description='Check for duplicates in your music collection. mud will find \
             all duplicates, even if the file is encoded at a different bitrate. And \
             of course it won\'t be fooled by tags :)')
-    parser.add_argument('-s','--scan',
-        action = 'store_true',
-        help = 'Scan music directory for new files.')
-    parser.add_argument('-b','--build-collection',
-        action = 'store_true',
-        help = 'Go through collection and build database of audio fingerprints.')
-    parser.add_argument('-p','--print-dupes',
-        action = 'store_true',
-        help = 'Print all duplicates found.')
-    parser.add_argument('-c','--check',
-        action = 'store_true',
-        help = 'Check if files in database still exist on disk.')
-    parser.add_argument('-v','--version',
-        action = 'store_true',
-        help = 'Display version.')
+    parser.add_argument('-s', '--scan',
+                        action='store_true',
+                        help='Scan music directory for new files.')
+    parser.add_argument('-b', '--build-collection',
+                        action='store_true',
+                        help='Go through collection and build database of audio fingerprints.')
+    parser.add_argument('-p', '--print-dupes',
+                        action='store_true',
+                        help='Print all duplicates found.')
+    parser.add_argument('-c', '--check',
+                        action='store_true',
+                        help='Check if files in database still exist on disk.')
+    parser.add_argument('-v', '--version',
+                        action='store_true',
+                        help='Display version.')
     args = parser.parse_args()
 
     db.setup()
@@ -337,4 +348,3 @@ if __name__ == '__main__':
         check_files()
     if args.print_dupes:
         print_duplicates()
-
