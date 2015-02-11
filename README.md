@@ -47,3 +47,18 @@ Currently, mud is used via it's cli. For usage and available options, read the h
 ./mud.py -h
 ```
 
+## Required Space for Database
+The exact space requirement depends on various factors. The main contribution to disk usage
+are the audio fingerprints. The ratio of sound file space on disk to fingerprints
+depends on various factors, like the bit rate of your sound files and the
+percentage of duplicates (duplicates will be fingerprinted only once). To get an upper bound on
+space requrement, I would assume to have no duplicates. Then you will need about 35% (this number
+is my first guess and will be updated with more experience) of your sound file disk space for the
+fingerprints.
+
+dejavu states that it needs about the same amount of disk space for the fingerprints as the original
+audio files. mud needs less, as not the whole audio file is fingerprinted, but only the first 30 seconds.
+This value can be altered in settings.py (`fingerprint_limit`) to save even more disk space. dejavu claims
+that usually 5 seconds are enough to recognize a song. I have chosen 30 seconds as a default in order
+to account for songs with long intros, where not much significant is happening.
+
