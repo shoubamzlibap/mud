@@ -64,24 +64,20 @@ class MudDatabase(SQLDatabase):
     # inserts
     INSERT_SONGFILE = """
         INSERT INTO %s (%s) values
-        (%%s); """ % (
-        SONGFILES_TABLENAME, FIELD_FILE_PATH
-    )
+        (%%s); """ % (SONGFILES_TABLENAME, FIELD_FILE_PATH)
 
     # updates
     UPDATE_SONGFILE = """
         UPDATE %s SET %s=%%s,
         %s=%%s, %s=%%s, %s=%%s
         WHERE %s=%%s;""" % (SONGFILES_TABLENAME, FIELD_SONG_ID,
-                            FIELD_SONG_ARTIST, FIELD_SONG_TITLE, FIELD_SONG_ALBUM,
-                            FIELD_FILE_PATH)
+                            FIELD_SONG_ARTIST, FIELD_SONG_TITLE,
+                            FIELD_SONG_ALBUM, FIELD_FILE_PATH)
 
     # selects
     SELECT_NEW_FILES = """
         SELECT %s FROM %s WHERE %s is NULL;
-        """ % (
-        FIELD_FILE_PATH, SONGFILES_TABLENAME, FIELD_SONG_ID
-    )
+        """ % (FIELD_FILE_PATH, SONGFILES_TABLENAME, FIELD_SONG_ID)
 
     SELECT_SONG_IDS = """ SELECT %s FROM %s
         ;""" % (FIELD_SONG_ID, SQLDatabase.SONGS_TABLENAME)
@@ -90,7 +86,8 @@ class MudDatabase(SQLDatabase):
         SELECT %s,%s,
         %s,%s FROM %s WHERE %s=%%s
         """ % (FIELD_FILE_PATH, FIELD_SONG_ARTIST,
-               FIELD_SONG_TITLE, FIELD_SONG_ALBUM, SONGFILES_TABLENAME, FIELD_SONG_ID)
+               FIELD_SONG_TITLE, FIELD_SONG_ALBUM,
+               SONGFILES_TABLENAME, FIELD_SONG_ID)
 
     SELECT_ALL_FILES = """ SELECT %s FROM %s;
         """ % (FIELD_FILE_PATH, SONGFILES_TABLENAME)
@@ -217,8 +214,8 @@ def list_new_files():
     """
     Return a list of filenames from the database that are not yet fingerprinted.
     """
-    for f in db.select_new_files():
-        yield f['file_path']
+    for filepath in db.select_new_files():
+        yield filepath['file_path']
 
 
 def get_song_id(song_file):
@@ -237,11 +234,10 @@ def scan_files():
     Scan for music files and add them to the database
     """
     iprint('Scanning music base dir for mp3 files')
-    file_list = []
     for root, sub_folders, files in os.walk(settings.music_base_dir):
-        for f in files:
-            if f.endswith('.mp3') or f.endswith('.MP3'):
-                add_song_file(os.path.join(root, f))
+        for filepath in files:
+            if filepath.endswith('.mp3') or filepath.endswith('.MP3'):
+                add_song_file(os.path.join(root, filepath))
 
 
 def add_song_file(song_file):
@@ -281,8 +277,8 @@ def print_duplicates():
     if dups:
         for sfiles in dups:
             print
-            for f in sfiles:
-                print f['song_title'] + ' - ' + f['file_path']
+            for sound_file in sfiles:
+                print sound_file['song_title'] + ' - ' + sound_file['file_path']
     else:
         print 'No duplicates found'
 
@@ -315,15 +311,16 @@ def iprint(message, level=2):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
-        description='Check for duplicates in your music collection. mud will find \
-            all duplicates, even if the file is encoded at a different bitrate. And \
-            of course it won\'t be fooled by tags :)')
+        description='Check for duplicates in your music collection. mud will \
+            find all duplicates, even if the file is encoded at a different \
+            bitrate. And of course it won\'t be fooled by tags :)')
     parser.add_argument('-s', '--scan',
                         action='store_true',
                         help='Scan music directory for new files.')
     parser.add_argument('-b', '--build-collection',
                         action='store_true',
-                        help='Go through collection and build database of audio fingerprints.')
+                        help='Go through collection and build database of \
+                            audio fingerprints.')
     parser.add_argument('-p', '--print-dupes',
                         action='store_true',
                         help='Print all duplicates found.')
