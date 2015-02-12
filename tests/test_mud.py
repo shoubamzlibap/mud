@@ -14,6 +14,8 @@ del path
 
 import settings
 
+SKIP_LONG_TESTS = True
+
 class testMud(unittest.TestCase):
 
     @classmethod
@@ -90,17 +92,16 @@ class testMud(unittest.TestCase):
         self.assertListEqual(sorted(new_files), sorted(self.files))
 
 
-    @unittest.skip('Tested successfully, runs very long')
+    @unittest.skipIf(SKIP_LONG_TESTS, 'Tested successfully, runs very long')
     def test_get_song_id(self):
         """
         Song ID returned correctly
         """
-        # add song, songid shoudl be 1
+        # add song
+        sid_run1 = self.mud.get_song_id(self.test_song)
+        # add song again, songid shoudl be same as bevor
         sid = self.mud.get_song_id(self.test_song)
-        self.assertEqual(sid, 1)
-        # add song again, songid shoudl be 1
-        sid = self.mud.get_song_id(self.test_song)
-        self.assertEqual(sid, 1)
+        self.assertEqual(sid, sid_run1)
 
     my_mock = mock.Mock()
     @mock.patch('eyed3.load', my_mock.fake_load)
@@ -115,7 +116,7 @@ class testMud(unittest.TestCase):
         with self.assertRaises(IntegrityError):
             self.mud.add_to_collection(test_file, song_id )
 
-    @unittest.skip('Tested successfully, runs very long')
+    @unittest.skipIf(SKIP_LONG_TESTS, 'Tested successfully, runs very long')
     def test_get_duplicates(self):
         """
         Duplicates are returned correctly
@@ -123,6 +124,17 @@ class testMud(unittest.TestCase):
         settings.music_base_dir = '/home/isaac'
         self.mud.scan_files()
         self.mud.build_collection()
-        dups = self.mud.get_duplicates()
-        print dups
+        self.mud.print_duplicates()
+
+    def test_check_files(self):
+        """
+        Scan files on disk
+        """
+        self.fail('create test')
+
+    def test_select_all_song_files(self):
+        """
+        Song files selected and deleted correctly
+        """
+        self.fail('create test')
 
