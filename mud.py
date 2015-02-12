@@ -225,10 +225,6 @@ def get_song_id(song_file):
     djv = Dejavu(settings.dejavu_config)
     djv.fingerprint_file(song_file)
     song = djv.recognize(FileRecognizer, song_file)
-    print "inside get_song_id"
-    print song_file
-    print song
-    print "leaving get_song_id"
     return song['song_id']
 
 
