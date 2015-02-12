@@ -14,7 +14,7 @@ del path
 
 import settings
 
-SKIP_LONG_TESTS = True
+SKIP_LONG_TESTS = False
 
 class testMud(unittest.TestCase):
 
@@ -125,16 +125,34 @@ class testMud(unittest.TestCase):
         self.mud.scan_files()
         self.mud.build_collection()
         self.mud.print_duplicates()
+        dups = self.mud.get_duplicates()
+        self.assertTrue(len(dups) > 0)
 
+
+    @mock.patch('mud.db.delete_song_file', gp_mock.delete_song_file )
     def test_check_files(self):
         """
-        Scan files on disk
+        Files no longer present are deleted from database
         """
-        self.fail('create test')
+        test_file = self.music_base_dir + self.files[0]
+        self.mud.scan_files()
+        os.remove(test_file)
+        self.mud.check_files()
+        self.gp_mock.delete_song_file.assert_called_once_with(test_file)
+        # create file again
+        open(test_file, 'w').close()
 
-    def test_select_all_song_files(self):
-        """
-        Song files selected and deleted correctly
-        """
-        self.fail('create test')
 
+    def test_delete_song_file(self):
+        """
+        File actually removed from database
+        """
+        test_file = self.music_base_dir + self.files[0]
+        self.mud.scan_files()
+        os.remove(test_file)
+        self.mud.check_files()
+        for song_file in self.mud.db.select_all_song_files():
+            self.assertTrue(test_file not in song_file['file_path'])
+        # create file again and add to database
+        open(test_file, 'w').close()
+        self.mud.scan_files()
