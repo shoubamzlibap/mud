@@ -177,8 +177,6 @@ class MudDatabase(SQLDatabase):
 # object for usage by functions below
 warnings.filterwarnings('ignore')
 db = MudDatabase(**settings.dejavu_config.get('database', {}))
-djv = Dejavu(settings.dejavu_config)
-
 
 def build_collection():
     """
@@ -224,8 +222,13 @@ def get_song_id(song_file):
 
     song_file: string, absolute path to sound file
     """
+    djv = Dejavu(settings.dejavu_config)
     djv.fingerprint_file(song_file)
     song = djv.recognize(FileRecognizer, song_file)
+    print "inside get_song_id"
+    print song_file
+    print song
+    print "leaving get_song_id"
     return song['song_id']
 
 
