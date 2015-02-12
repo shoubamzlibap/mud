@@ -3,3 +3,4 @@ settings.py
 *.pyc
 flush_db.sh
 todo
+.coverage
