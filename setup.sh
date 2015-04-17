@@ -7,15 +7,15 @@ install_dependencies(){
     yum repolist |grep Fusion >/dev/null || sudo yum localinstall \
         --nogpgcheck http://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
         http://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-    sudo yum install numpy scipy python-matplotlib ffmpeg portaudio-devel gcc mariadb-server python-eyed3
+    sudo yum install numpy scipy python-matplotlib ffmpeg portaudio-devel gcc mariadb-server python-eyed3 python-pip
     sudo pip install --allow-external PyAudio --allow-unverified PyAudio PyAudio
     sudo pip install pydub 
     sudo pip install PyDejavu
     # configure mariadb
-    sed -i '/\[mysqld\]/a  innodb_file_per_table = 1' /etc/my.cnf.d/server.cnf
+    sudo sed -i '/\[mysqld\]/a  innodb_file_per_table = 1' /etc/my.cnf.d/server.cnf
+    sudo systemctl start mariadb
     sudo mysql_secure_installation
     sudo systemctl enable mariadb
-    sudo systemctl start mariadb
 }
 
 # create settings.py file with the db credentials
