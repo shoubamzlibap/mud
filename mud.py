@@ -17,7 +17,12 @@ import settings
 from dejavu import Dejavu
 from dejavu.database_sql import SQLDatabase, cursor_factory, DictCursor
 from dejavu.recognize import FileRecognizer
+import pydub
 
+ERROR_CODES = {
+    'CouldntDecodeError': -1,
+    'SongObjectIsNone': -2,
+    }
 
 class MudDatabase(SQLDatabase):
 
@@ -30,6 +35,7 @@ class MudDatabase(SQLDatabase):
     # fields
     FIELD_FILE_ID = 'file_id'  # primary key, autoincrement
     FIELD_FILE_PATH = 'file_path'
+    FIELD_FILE_ERROR = 'file_error'
     FIELD_SONG_ID = SQLDatabase.FIELD_SONG_ID  # foreign key -> songs, song_id
     FIELD_SONG_ARTIST = 'song_artist'
     FIELD_SONG_TITLE = 'song_title'
@@ -41,6 +47,7 @@ class MudDatabase(SQLDatabase):
              `%s` mediumint unsigned not null auto_increment,
              `%s` varchar(500) not null unique,
              `%s` mediumint unsigned,
+             `%s` smallint default '0',
              `%s` varchar(250),
              `%s` varchar(250),
              `%s` varchar(250),
@@ -52,6 +59,7 @@ class MudDatabase(SQLDatabase):
         FIELD_FILE_ID,
         FIELD_FILE_PATH,
         FIELD_SONG_ID,
+        FIELD_FILE_ERROR,
         FIELD_SONG_ARTIST,
         FIELD_SONG_TITLE,
         FIELD_SONG_ALBUM,
@@ -71,6 +79,13 @@ class MudDatabase(SQLDatabase):
         UPDATE %s SET %s=%%s,
         %s=%%s, %s=%%s, %s=%%s
         WHERE %s=%%s;""" % (SONGFILES_TABLENAME, FIELD_SONG_ID,
+                            FIELD_SONG_ARTIST, FIELD_SONG_TITLE,
+                            FIELD_SONG_ALBUM, FIELD_FILE_PATH)
+
+    UPDATE_ERROR_SONGFILE = """
+        UPDATE %s SET %s=%%s,
+        %s=%%s, %s=%%s, %s=%%s
+        WHERE %s=%%s;""" % (SONGFILES_TABLENAME, FIELD_FILE_ERROR,
                             FIELD_SONG_ARTIST, FIELD_SONG_TITLE,
                             FIELD_SONG_ALBUM, FIELD_FILE_PATH)
 
@@ -118,17 +133,41 @@ class MudDatabase(SQLDatabase):
     def insert_songfile(self, file_path):
         """
         Insert a song file into the database
+
+        file_path: string, full path of file
         """
         with self.cursor() as cur:
             cur.execute(self.INSERT_SONGFILE, (file_path))
 
     def update_songfile(self, file_path, song_id, artist, title, album):
         """
-        Update a songfile with its song id
+        Update a songfile with its song id.
+
+        file_path: string, full path of file
+        song_id: int, id of a fingerprinted song
+        artist: string, content of correspondint id3 tag
+        title: string, content of correspondint id3 tag
+        album: string, content of correspondint id3 tag
+
         """
         with self.cursor() as cur:
             cur.execute(self.UPDATE_SONGFILE, (
                 song_id, artist, title, album, file_path))
+
+    def update_error_on_songfile(self, file_path, artist, title, album, error_code=0):
+        """
+        Set error code on song file.
+
+        file_path: string, full path of file
+        artist: string, content of correspondint id3 tag
+        title: string, content of correspondint id3 tag
+        album: string, content of correspondint id3 tag
+        error_code: int, an error code, currently just {0: 'no error', 1: 'no song_id'}
+
+        """
+        with self.cursor() as cur:
+            cur.execute(self.UPDATE_ERROR_SONGFILE, (
+                error_code, artist, title, album, file_path))
 
     def select_new_files(self):
         """
@@ -151,6 +190,8 @@ class MudDatabase(SQLDatabase):
     def select_file_by_id(self, song_id):
         """
         Get songfile by id
+
+        song_id: int, id of a fingerprinted song
         """
         with self.cursor(cursor_type=DictCursor) as cur:
             cur.execute(self.SELECT_FILE_BY_ID, (song_id))
@@ -215,7 +256,10 @@ def add_to_collection(song_file, song_id):
         artist = ''
         title = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','')
         album = ''
-    db.update_songfile(song_file, song_id, artist, title, album)
+    if song_id > 0:
+        db.update_songfile(song_file, song_id, artist, title, album)
+    else:
+        db.update_error_on_songfile(song_file, artist, title, album, error_code=song_id)
 
 
 def list_new_files():
@@ -233,9 +277,15 @@ def get_song_id(song_file):
     song_file: string, absolute path to sound file
     """
     djv = Dejavu(settings.dejavu_config)
-    djv.fingerprint_file(song_file)
+    try:
+        djv.fingerprint_file(song_file)
+    except pydub.exceptions.CouldntDecodeError:
+        return ERROR_CODES['CouldntDecodeError']
     song = djv.recognize(FileRecognizer, song_file)
-    return song['song_id']
+    if song:
+        return song['song_id']
+    else:
+        return ERROR_CODES['SongObjectIsNone']
 
 
 def scan_files():
