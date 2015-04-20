@@ -107,6 +107,15 @@ class MudDatabase(SQLDatabase):
     SELECT_ALL_FILES = """ SELECT %s FROM %s;
         """ % (FIELD_FILE_PATH, SONGFILES_TABLENAME)
 
+    SELECT_NUM_FILES = """SELECT COUNT(*), 'num_files' FROM %s;
+        """ % (SONGFILES_TABLENAME)
+
+    SELECT_NUM_FINGERPRINTED = """SELECT COUNT(*), 'num_fingerprinted' FROM 
+        %s WHERE %s IS NOT NULL; """ % (SONGFILES_TABLENAME, FIELD_SONG_ID)
+
+    SELECT_NUM_ERRORS = """SELECT COUNT(*), '%%s' 
+        FROM %s WHERE %s = %%s; """ % (SONGFILES_TABLENAME, FIELD_FILE_ERROR)
+
     # deletes
     DELETE_SONG_FILE = """
         DELETE FROM %s WHERE %s=%%s
@@ -199,13 +208,25 @@ class MudDatabase(SQLDatabase):
                 yield row
 
     def select_all_song_files(self):
-        """
-        Get all song files stored in db.
-        """
+        """Get all song files stored in db."""
         with self.cursor(cursor_type=DictCursor) as cur:
             cur.execute(self.SELECT_ALL_FILES, ())
             for row in cur:
                 yield row
+
+    def select_num_files(self):
+        """Get the number of files indexed"""
+        with self.cursor(cursor_type=DictCursor) as cur:
+            cur.execute(self.SELECT_NUM_FILES, ())
+            for row in cur:
+                return row['COUNT(*)']
+
+    def select_num_fingerprinted(self):
+        """Get the number of files fingerprinted"""
+        with self.cursor(cursor_type=DictCursor) as cur:
+            cur.execute(self.SELECT_NUM_FINGERPRINTED, ())
+            for row in cur:
+                return row['COUNT(*)']
 
     def delete_song_file(self, path):
         """
@@ -289,9 +310,7 @@ def get_song_id(song_file):
 
 
 def scan_files():
-    """
-    Scan for music files and add them to the database
-    """
+    """Scan for music files and add them to the database."""
     iprint('Scanning music base dir for mp3 files')
     for root, sub_folders, files in os.walk(settings.music_base_dir):
         for filepath in files:
@@ -300,9 +319,7 @@ def scan_files():
 
 
 def add_song_file(song_file):
-    """
-    Add a song file to the database, if it not already exists.
-    """
+    """Add a song file to the database, if it not already exists."""
     try:
         db.insert_songfile(song_file)
     except IntegrityError:
@@ -329,9 +346,7 @@ def get_duplicates():
 
 
 def print_duplicates():
-    """
-    Print duplicates to std out
-    """
+    """ Print duplicates to std out """
     dups = get_duplicates()
     if dups:
         for sfiles in dups:
@@ -340,6 +355,13 @@ def print_duplicates():
                 print sound_file['song_title'] + ' - ' + sound_file['file_path']
     else:
         print 'No duplicates found'
+
+
+def print_stats():
+    """Print some statistics."""
+    num_files = db.select_num_files()
+    num_fingerprinted = db.select_num_fingerprinted()
+    print str(num_fingerprinted) + ' of ' + str(num_files) + ' fingerprinted.'
 
 
 def check_files():
@@ -380,9 +402,12 @@ if __name__ == '__main__':
                         action='store_true',
                         help='Go through collection and build database of \
                             audio fingerprints.')
-    parser.add_argument('-p', '--print-dupes',
+    parser.add_argument('-p', '--print-dups',
                         action='store_true',
                         help='Print all duplicates found.')
+    parser.add_argument('-t', '--print-stats',
+                        action='store_true',
+                        help='Print some statistics and progress information.')
     parser.add_argument('-c', '--check',
                         action='store_true',
                         help='Check if files in database still exist on disk.')
@@ -402,5 +427,7 @@ if __name__ == '__main__':
         build_collection()
     if args.check:
         check_files()
-    if args.print_dupes:
+    if args.print_dups:
         print_duplicates()
+    if args.print_stats:
+        print_stats()
