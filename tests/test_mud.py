@@ -14,7 +14,7 @@ del path
 
 import settings
 
-SKIP_LONG_TESTS = False
+SKIP_LONG_TESTS = True
 
 class testMud(unittest.TestCase):
 
@@ -102,6 +102,27 @@ class testMud(unittest.TestCase):
         # add song again, songid shoudl be same as bevor
         sid = self.mud.get_song_id(self.test_song)
         self.assertEqual(sid, sid_run1)
+        self.assertTrue(isinstance(sid, int))
+
+    def test_get_song_id_error(self):
+        """
+        Unreadable file is handled 
+        """
+        emty_file = self.music_base_dir + self.files[0]
+        sid = self.mud.get_song_id(emty_file)
+        self.assertEqual(sid, -1)
+
+    def fake_fingerprint(junk1, junk2):
+        return None
+    @unittest.skip('Patching does not work correctly - needs fix')
+    @mock.patch('dejavu.Dejavu.fingerprint_file', fake_fingerprint)
+    def test_get_song_id_None(self):
+        """
+        song object of none is handled
+        """
+        emty_file = self.music_base_dir + self.files[0]
+        sid = self.mud.get_song_id(emty_file)
+        self.assertEqual(sid, -2)
 
     my_mock = mock.Mock()
     @mock.patch('eyed3.load', my_mock.fake_load)
