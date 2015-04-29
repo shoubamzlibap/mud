@@ -113,7 +113,7 @@ class MudDatabase(SQLDatabase):
     SELECT_NUM_FINGERPRINTED = """SELECT COUNT(*), 'num_fingerprinted' FROM 
         %s WHERE %s IS NOT NULL; """ % (SONGFILES_TABLENAME, FIELD_SONG_ID)
 
-    SELECT_NUM_ERRORS = """SELECT COUNT(*), '%%s' 
+    SELECT_NUM_ERRORS = """SELECT COUNT(*), 'num_errors' 
         FROM %s WHERE %s = %%s; """ % (SONGFILES_TABLENAME, FIELD_FILE_ERROR)
 
     # deletes
@@ -227,6 +227,20 @@ class MudDatabase(SQLDatabase):
             cur.execute(self.SELECT_NUM_FINGERPRINTED, ())
             for row in cur:
                 return row['COUNT(*)']
+
+    def select_num_errors(self, error_key):
+        """
+        Get the number of errors for the specified key
+        
+        error_key: string, must be a key to ERROR_CODES 
+
+        """
+        with self.cursor(cursor_type=DictCursor) as cur:
+            cur.execute(self.SELECT_NUM_ERRORS, (ERROR_CODES[error_key]))
+            for row in cur:
+                return row['COUNT(*)']
+
+
 
     def delete_song_file(self, path):
         """
@@ -359,10 +373,17 @@ def print_duplicates():
 
 def print_stats():
     """Print some statistics."""
+    # Progress
     num_files = db.select_num_files()
     num_fingerprinted = db.select_num_fingerprinted()
-    print str(num_fingerprinted) + ' of ' + str(num_files) + ' fingerprinted.'
-
+    print 'PROGRESS: ' + str(num_fingerprinted) + ' of ' + str(num_files) + ' fingerprinted.'
+    # Errors
+    for error_key in ERROR_CODES.keys():
+        num_errors = db.select_num_errors(error_key)
+        print 'ERRORS: ' + str(num_errors) + ' ' + error_key
+    # Duplicates
+    dups = get_duplicates()
+    print 'DUPLICATES: ' + str(len(dups)) + ' duplicates found'
 
 def check_files():
     """
