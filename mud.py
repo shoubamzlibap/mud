@@ -146,7 +146,7 @@ class MudDatabase(SQLDatabase):
         file_path: string, full path of file
         """
         with self.cursor() as cur:
-            cur.execute(self.INSERT_SONGFILE, (file_path))
+            cur.execute(self.INSERT_SONGFILE, [file_path])
 
     def update_songfile(self, file_path, song_id, artist, title, album):
         """
@@ -160,8 +160,8 @@ class MudDatabase(SQLDatabase):
 
         """
         with self.cursor() as cur:
-            cur.execute(self.UPDATE_SONGFILE, (
-                song_id, artist, title, album, file_path))
+            cur.execute(self.UPDATE_SONGFILE, [
+                song_id, artist, title, album, file_path])
 
     def update_error_on_songfile(self, file_path, artist, title, album, error_code=0):
         """
@@ -175,8 +175,8 @@ class MudDatabase(SQLDatabase):
 
         """
         with self.cursor() as cur:
-            cur.execute(self.UPDATE_ERROR_SONGFILE, (
-                error_code, artist, title, album, file_path))
+            cur.execute(self.UPDATE_ERROR_SONGFILE, [
+                error_code, artist, title, album, file_path])
 
     def select_new_files(self):
         """
@@ -203,28 +203,28 @@ class MudDatabase(SQLDatabase):
         song_id: int, id of a fingerprinted song
         """
         with self.cursor(cursor_type=DictCursor) as cur:
-            cur.execute(self.SELECT_FILE_BY_ID, (song_id))
+            cur.execute(self.SELECT_FILE_BY_ID, [song_id])
             for row in cur:
                 yield row
 
     def select_all_song_files(self):
         """Get all song files stored in db."""
         with self.cursor(cursor_type=DictCursor) as cur:
-            cur.execute(self.SELECT_ALL_FILES, ())
+            cur.execute(self.SELECT_ALL_FILES, [])
             for row in cur:
                 yield row
 
     def select_num_files(self):
         """Get the number of files indexed"""
         with self.cursor(cursor_type=DictCursor) as cur:
-            cur.execute(self.SELECT_NUM_FILES, ())
+            cur.execute(self.SELECT_NUM_FILES, [])
             for row in cur:
                 return row['COUNT(*)']
 
     def select_num_fingerprinted(self):
         """Get the number of files fingerprinted"""
         with self.cursor(cursor_type=DictCursor) as cur:
-            cur.execute(self.SELECT_NUM_FINGERPRINTED, ())
+            cur.execute(self.SELECT_NUM_FINGERPRINTED, [])
             for row in cur:
                 return row['COUNT(*)']
 
@@ -236,18 +236,16 @@ class MudDatabase(SQLDatabase):
 
         """
         with self.cursor(cursor_type=DictCursor) as cur:
-            cur.execute(self.SELECT_NUM_ERRORS, (ERROR_CODES[error_key]))
+            cur.execute(self.SELECT_NUM_ERRORS, [ERROR_CODES[error_key]])
             for row in cur:
                 return row['COUNT(*)']
-
-
 
     def delete_song_file(self, path):
         """
         Delete path from database.
         """
         with self.cursor() as cur:
-            cur.execute(self.DELETE_SONG_FILE, (path))
+            cur.execute(self.DELETE_SONG_FILE, [path])
 
 
 # object for usage by functions below
@@ -384,6 +382,7 @@ def print_stats():
     # Duplicates
     dups = get_duplicates()
     print 'DUPLICATES: ' + str(len(dups)) + ' duplicates found'
+
 
 def check_files():
     """
