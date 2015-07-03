@@ -7,12 +7,12 @@ import mock
 import warnings
 from MySQLdb import IntegrityError
 
-path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if not path in sys.path:
-    sys.path.insert(1, path)
-del path
+#path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+#if not path in sys.path:
+#    sys.path.insert(1, path)
+#del path
 
-import settings
+from .. import settings
 
 SKIP_LONG_TESTS = True
 
@@ -50,11 +50,10 @@ class testMud(unittest.TestCase):
         subprocess.call(create_db_command)
         subprocess.call(grant_all_command)
         # get mud
-        import mud
+        from .. import mud
         self.mud = mud
         # create database object for later usage
         warnings.filterwarnings('ignore')
-        import mud
         self.db = mud.MudDatabase(**settings.dejavu_config.get('database',{}))
         self.db.setup()
 
