@@ -310,11 +310,12 @@ def get_song_id(song_file):
     song_file: string, absolute path to sound file
     """
     djv = Dejavu(settings.dejavu_config)
+    song = None
     try:
         djv.fingerprint_file(song_file)
+        song = djv.recognize(FileRecognizer, song_file)
     except pydub.exceptions.CouldntDecodeError:
         return ERROR_CODES['CouldntDecodeError']
-    song = djv.recognize(FileRecognizer, song_file)
     if song:
         return song['song_id']
     else:
@@ -364,7 +365,9 @@ def print_duplicates():
         for sfiles in dups:
             print
             for sound_file in sfiles:
-                print sound_file['song_title'] + ' - ' + sound_file['file_path']
+                song_title = sound_file['song_title']
+                if not song_title: song_title = 'NO TITLE'
+                print song_title + ' - ' + sound_file['file_path']
     else:
         print 'No duplicates found'
 
