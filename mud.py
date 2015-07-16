@@ -6,7 +6,7 @@
 
 # Author: Isaac Hailperin <isaac.hailperin@gmail.com>
 #VERSION = 0.1  # APR-2015 | isaac | initial version
-VERSION = 0.1.1  # JUL-2015 | isaac | some fixes for fedora 22 and utf8 encoding
+VERSION = '0.1.1'  # JUL-2015 | isaac | some fixes for fedora 22 and utf8 encoding
 
 import argparse
 import os
