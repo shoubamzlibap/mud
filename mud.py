@@ -5,7 +5,8 @@
 # in your music collection.
 
 # Author: Isaac Hailperin <isaac.hailperin@gmail.com>
-VERSION = 0.1  # APR-2015 | isaac | initial version
+#VERSION = 0.1  # APR-2015 | isaac | initial version
+VERSION = 0.1.1  # JUL-2015 | isaac | some fixes for fedora 22 and utf8 encoding
 
 import argparse
 import os
@@ -368,13 +369,13 @@ def print_duplicates():
     dups = get_duplicates()
     if dups:
         for sfiles in dups:
-            print
+            print('')
             for sound_file in sfiles:
                 song_title = sound_file['song_title']
                 if not song_title: song_title = 'NO TITLE'
-                print song_title + ' - ' + sound_file['file_path']
+                print(song_title + ' - ' + sound_file['file_path'])
     else:
-        print 'No duplicates found'
+        print('No duplicates found')
 
 
 def print_stats():
@@ -382,14 +383,14 @@ def print_stats():
     # Progress
     num_files = db.select_num_files()
     num_fingerprinted = db.select_num_fingerprinted()
-    print 'PROGRESS: ' + str(num_fingerprinted) + ' of ' + str(num_files) + ' fingerprinted.'
+    print('PROGRESS: ' + str(num_fingerprinted) + ' of ' + str(num_files) + ' fingerprinted.')
     # Errors
     for error_key in ERROR_CODES.keys():
         num_errors = db.select_num_errors(error_key)
-        print 'ERRORS: ' + str(num_errors) + ' ' + error_key
+        print('ERRORS: ' + str(num_errors) + ' ' + error_key)
     # Duplicates
     dups = get_duplicates()
-    print 'DUPLICATES: ' + str(len(dups)) + ' duplicates found'
+    print('DUPLICATES: ' + str(len(dups)) + ' duplicates found')
 
 
 def check_files():
@@ -412,7 +413,7 @@ def iprint(message, level=2):
     """
     general_level = 1  # should be moved to settings, and accessible via cli
     if level > general_level:
-        print message
+        print(message)
 
 #
 # CLI
@@ -447,7 +448,7 @@ if __name__ == '__main__':
     db.setup()
 
     if args.version:
-        print VERSION
+        print(VERSION)
         exit(0)
     if args.scan:
         scan_files()
