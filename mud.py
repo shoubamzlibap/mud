@@ -276,19 +276,24 @@ def add_to_collection(song_file, song_id):
 
     """
     audio_file = eyed3.load(song_file)
+    tags = {}
     if audio_file.tag:
-        artist = audio_file.tag.artist
-        title = audio_file.tag.title
-        album = audio_file.tag.album
-        for tag_item in (artist, title, album):
-            if tag_item:
-                tag_item = tag_item.strip()
+        #artist = audio_file.tag.artist.encode('utf-8')
+        tags['artist'] = audio_file.tag.artist
+        tags['title'] = audio_file.tag.title
+        tags['album'] = audio_file.tag.album
+        for tag_name,tag_value in tags.iteritems():
+            if tag_value:
+                tags[tag_name] = tag_value.strip().encode('utf-8')
             else:
-                tag_item = ''
+                tags[tag_name] = ''.encode('utf-8')
     else:
-        artist = ''
-        title = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','')
-        album = ''
+        tags['artist'] = ''.encode('utf-8')
+        tags['title'] = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','').encode('utf-8')
+        tags['album'] = ''.encode('utf-8')
+    artist = tags['artist']
+    title = tags['title']
+    album = tags['album']
     if song_id > 0:
         db.update_songfile(song_file, song_id, artist, title, album)
     else:
