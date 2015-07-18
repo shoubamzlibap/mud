@@ -21,6 +21,7 @@ from dejavu.recognize import FileRecognizer
 import pydub
 
 # unset eyed3 global log configuration
+# https://bitbucket.org/nicfit/eyed3/issues/91/dont-configure-global-logging-settings
 import eyed3
 logging.getLogger().handlers.pop()
 logging.setLoggerClass(logging.Logger)
@@ -278,7 +279,9 @@ def build_collection():
     """
     logging.info('Building collection')
     for song_f in list_new_files():
+        logging.debug('Getting song id for ' + song_f)
         song_id = get_song_id(song_f)
+        logging.debug('Adding "' + song_f + '" to collection with song_id ' + str(song_id))
         add_to_collection(song_f, song_id)
 
 
@@ -293,7 +296,6 @@ def add_to_collection(song_file, song_id):
     audio_file = eyed3.load(song_file)
     tags = {}
     if audio_file.tag:
-        #artist = audio_file.tag.artist.encode('utf-8')
         tags['artist'] = audio_file.tag.artist
         tags['title'] = audio_file.tag.title
         tags['album'] = audio_file.tag.album
@@ -303,6 +305,7 @@ def add_to_collection(song_file, song_id):
             else:
                 tags[tag_name] = ''.encode('utf-8')
     else:
+        logging.warning('File without valid mp3 tag, using filename as "title": ' + song_file)
         tags['artist'] = ''.encode('utf-8')
         tags['title'] = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','').encode('utf-8')
         tags['album'] = ''.encode('utf-8')
@@ -319,6 +322,7 @@ def list_new_files():
     """
     Return a list of filenames from the database that are not yet fingerprinted.
     """
+    logging.debug('Getting not yet fingerprinted song files')
     for filepath in db.select_new_files():
         yield filepath['file_path']
 
@@ -332,13 +336,18 @@ def get_song_id(song_file):
     djv = Dejavu(settings.dejavu_config)
     song = None
     try:
+        logging.debug('Fingerprinting ' + song_file)
         djv.fingerprint_file(song_file)
+        logging.debug('Recognizing ' + song_file)
         song = djv.recognize(FileRecognizer, song_file)
     except pydub.exceptions.CouldntDecodeError:
+        logging.error('CouldntDecodeError raised for ' + song_file)
         return ERROR_CODES['CouldntDecodeError']
     if song:
+        logging.debug('Successfully recognized ' + song_file + ' with song_id ' + str(song['song_id']))
         return song['song_id']
     else:
+        logging.error('SongObjectIsNone raised for ' + song_file)
         return ERROR_CODES['SongObjectIsNone']
 
 
@@ -368,6 +377,7 @@ def get_duplicates():
     return song_ids (together with the song_files) that have more
     then one song_file pointing to them.
     """
+    logging.info('Getting duplicates')
     duplicates = []
     for sid in db.select_song_ids():
         files = []
@@ -394,6 +404,7 @@ def print_duplicates():
 
 def print_stats():
     """Print some statistics."""
+    logging.info('Getting statistics')
     # Progress
     num_files = db.select_num_files()
     num_fingerprinted = db.select_num_fingerprinted()
