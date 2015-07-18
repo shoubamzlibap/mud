@@ -9,16 +9,30 @@
 VERSION = '0.1.1'  # JUL-2015 | isaac | some fixes for fedora 22 and utf8 encoding
 
 import argparse
+import logging
 import os
 from MySQLdb import IntegrityError
 import warnings
-import eyed3
 import settings
 
 from dejavu import Dejavu
 from dejavu.database_sql import SQLDatabase, cursor_factory, DictCursor
 from dejavu.recognize import FileRecognizer
 import pydub
+
+# unset eyed3 global log configuration
+import eyed3
+logging.getLogger().handlers.pop()
+logging.setLoggerClass(logging.Logger)
+
+
+LOG_LEVELS = {
+    'info': logging.INFO,
+    'debug': logging.DEBUG,
+    'warning': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL, }
+
 
 ERROR_CODES = {
     'CouldntDecodeError': -1,
@@ -262,7 +276,7 @@ def build_collection():
     to the song_id in dejavu.songs
 
     """
-    iprint('Building collection')
+    logging.info('Building collection')
     for song_f in list_new_files():
         song_id = get_song_id(song_f)
         add_to_collection(song_f, song_id)
@@ -330,7 +344,7 @@ def get_song_id(song_file):
 
 def scan_files():
     """Scan for music files and add them to the database."""
-    iprint('Scanning music base dir for mp3 files')
+    logging.info('Scanning music base dir for mp3 files')
     for root, sub_folders, files in os.walk(settings.music_base_dir):
         for filepath in files:
             if filepath.endswith('.mp3') or filepath.endswith('.MP3'):
@@ -397,23 +411,11 @@ def check_files():
     """
     Go through songfiles table and check if each file still exists on disk.
     """
-    iprint('Checking all songs in database still exists on disk.')
+    logging.info('Checking all songs in database still exists on disk.')
     for song_file in db.select_all_song_files():
         if not os.path.isfile(song_file['file_path']):
-            iprint('Deleting ' + song_file['file_path'] + ' from database.')
+            logging.info('Deleting ' + song_file['file_path'] + ' from database.')
             db.delete_song_file(song_file['file_path'])
-
-
-def iprint(message, level=2):
-    """
-    Print messages, honoring a verbosity level
-
-    message: string, a message to be printed
-    level: int, a verbosity level
-    """
-    general_level = 1  # should be moved to settings, and accessible via cli
-    if level > general_level:
-        print(message)
 
 #
 # CLI
@@ -440,14 +442,40 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--check',
                         action='store_true',
                         help='Check if files in database still exist on disk.')
-    parser.add_argument('-v', '--version',
+    parser.add_argument('-V', '--Version',
                         action='store_true',
                         help='Display version.')
+    parser.add_argument('-l', '--log-level',
+                        type=str,
+                        default='warning',
+                        help='Specify the log level. One of debug, info, warning, error, \
+                            critical. Default is warning.')
+    parser.add_argument('-v', '--verbosity-level',
+                        type=str,
+                        default='info',
+                        help='Specify the verbosity level. One of debug, info, warning, \
+                            error, critical. Default is info.')
     args = parser.parse_args()
+
+    # Logging
+    for level in [args.log_level, args.verbosity_level]:
+        if not LOG_LEVELS.get(level, None):
+            print('\'' + level +  '\' is not a valid log ore verbosity level. Must be one of ' 
+                + str(LOG_LEVELS.keys()) + '.')
+            exit()
+    # log file configuration
+#TODO: assignement of different logging levels does not work yet.
+    logging.basicConfig(filename=settings.log_file,
+        level=LOG_LEVELS[args.log_level],
+        format='%(asctime)s %(levelname)s: %(message)s',)
+    # logging to stderr configuration
+    stderr = logging.StreamHandler()
+    stderr.setLevel(LOG_LEVELS[args.verbosity_level])
+    logging.getLogger().addHandler(stderr)
 
     db.setup()
 
-    if args.version:
+    if args.Version:
         print(VERSION)
         exit(0)
     if args.scan:

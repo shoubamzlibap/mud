@@ -41,6 +41,9 @@ dejavu_config = {
 # base directory for music files
 music_base_dir = '/tmp'
 
+# localtion and name of the log file
+log_file = 'mud.log'
+
 EOF
     
 }
