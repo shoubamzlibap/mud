@@ -144,6 +144,7 @@ class MudDatabase(SQLDatabase):
         Setup Database code
         """
         self.cursor = cursor_factory(**options)
+        #super(MudDatabase, self).__init__(**options)
 
     def setup(self):
         """
@@ -358,7 +359,7 @@ def scan_files():
     logger.info('Scanning music base dir for mp3 files')
     for root, sub_folders, files in os.walk(settings.music_base_dir):
         for filepath in files:
-            if filepath.endswith('.mp3') or filepath.endswith('.MP3'):
+            if filepath.endswith(('.mp3', '.MP3')):
                 add_song_file(os.path.join(root, filepath))
 
 

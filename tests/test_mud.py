@@ -14,12 +14,18 @@ from MySQLdb import IntegrityError
 #import settings
 #import mud
 
-from .. import mud
 from .. import settings
+TEST_DB = 'mudtest'
+settings.dejavu_config['database']['db'] = TEST_DB
+# import mud AFTER patching settings
+from .. import mud
+
 
 SKIP_LONG_TESTS = True
 
 class testMud(unittest.TestCase):
+
+    gp_mock = mock.Mock()
 
     @classmethod
     def setUp(self):
@@ -38,8 +44,7 @@ class testMud(unittest.TestCase):
         # test song
         self.test_song = '/home/isaac/lucky_chops_renc/Lucky Chops/Lucky Chops - Lucky Chops - 08 Lean On Me.mp3'
         # database creation
-        self.test_db = 'mudtest'
-        settings.dejavu_config['database']['db'] = self.test_db
+        self.test_db = TEST_DB
         test_db_user = settings.dejavu_config['database']['user']
         test_db_pw = settings.dejavu_config['database']['passwd']
         # NOTE: set the path to your db root pw file here - (do not test in production ;))
@@ -52,24 +57,20 @@ class testMud(unittest.TestCase):
         ['grant all on ' + self.test_db + '.* to \'' + test_db_user + '\'@\'localhost\' identified by \'' + test_db_pw + '\';']
         subprocess.call(create_db_command)
         subprocess.call(grant_all_command)
-        # get mud
-        #from .. import mud
-        self.mud = mud
+        self.mud = mud # TODO: do we need this?
         # create database object for later usage
         warnings.filterwarnings('ignore')
         self.db = mud.MudDatabase(**settings.dejavu_config.get('database',{}))
         self.db.setup()
 
-    #@classmethod
+    @classmethod
     def tearDown(self):
         subprocess.call(['rm', '-rf', self.music_base_dir])
         drop_db_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
         drop_db_command = drop_db_command.split() + ['DROP DATABASE ' + self.test_db + ';']
         subprocess.call(drop_db_command)
 
-    gp_mock = mock.Mock()
-    @mock.patch('mud.add_song_file', gp_mock.add_song_file )
-    @unittest.skip('Maybe a fedora bug, check after upgrade')
+    @mock.patch('mud.mud.add_song_file', gp_mock.add_song_file )
     def test_scan_files(self):
         """
         Files in testdir scanned correctly
@@ -115,21 +116,21 @@ class testMud(unittest.TestCase):
         sid = self.mud.get_song_id(emty_file)
         self.assertEqual(sid, -1)
 
-    def fake_fingerprint(junk1, junk2):
+    def fake_fingerprint(junk1, junk2 ):
+        pass
+    def fake_recognize(junk1, junk2, junk3):
         return None
-    @unittest.skip('Patching does not work correctly - needs fix')
     @mock.patch('dejavu.Dejavu.fingerprint_file', fake_fingerprint)
+    @mock.patch('dejavu.Dejavu.recognize', fake_recognize)
     def test_get_song_id_None(self):
         """
-        song object of none is handled
+        Song object of none is handled
         """
         emty_file = self.music_base_dir + self.files[0]
         sid = self.mud.get_song_id(emty_file)
         self.assertEqual(sid, -2)
 
-    my_mock = mock.Mock()
-    @mock.patch('eyed3.load', my_mock.fake_load)
-    @unittest.skip('Maybe a fedora bug, check after upgrade')
+    @mock.patch('eyed3.load', gp_mock.fake_load)
     def test_update_songfile(self):
         """
         Song ID updated correctly
@@ -154,8 +155,7 @@ class testMud(unittest.TestCase):
         self.assertTrue(len(dups) > 0)
 
 
-    @unittest.skip('Maybe a fedora bug, check after upgrade')
-    @mock.patch('mud.db.delete_song_file', gp_mock.delete_song_file )
+    @mock.patch('mud.mud.db.delete_song_file', gp_mock.delete_song_file )
     def test_check_files(self):
         """
         Files no longer present are deleted from database
