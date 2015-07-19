@@ -1,8 +1,9 @@
 #!/usr/bin/python
-
-# mud.py - music deduplicator
-# Check for duplicates (e.g. differently encoded files of the same song)
-# in your music collection.
+"""
+mud.py - music deduplicator
+Check for duplicates (e.g. differently encoded files of the same song)
+in your music collection.
+"""
 
 # Author: Isaac Hailperin <isaac.hailperin@gmail.com>
 #VERSION = 0.1  # APR-2015 | isaac | initial version
@@ -267,9 +268,9 @@ class MudDatabase(SQLDatabase):
             cur.execute(self.DELETE_SONG_FILE, [path])
 
 
-# object for usage by functions below
 warnings.filterwarnings('ignore')
 db = MudDatabase(**settings.dejavu_config.get('database', {}))
+
 
 def build_collection():
     """
