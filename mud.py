@@ -296,7 +296,10 @@ def add_to_collection(song_file, song_id):
     song_id: int, foreign key to songs database
 
     """
-    audio_file = eyed3.load(song_file)
+    try:
+        audio_file = eyed3.load(song_file)
+    except IOError:
+        return
     tags = {}
     if audio_file.tag:
         tags['artist'] = audio_file.tag.artist
@@ -360,13 +363,15 @@ def scan_files():
     for root, sub_folders, files in os.walk(settings.music_base_dir):
         for filepath in files:
             if filepath.endswith(('.mp3', '.MP3')):
-                add_song_file(os.path.join(root, filepath))
+                path = os.path.join(root, filepath)
+                add_song_file(path.decode('utf-8'))
 
 
 def add_song_file(song_file):
     """Add a song file to the database, if it not already exists."""
     try:
-        db.insert_songfile(song_file)
+        db.insert_songfile(song_file.encode('utf-8'))
+        #db.insert_songfile(song_file)
     except IntegrityError:
         pass
 

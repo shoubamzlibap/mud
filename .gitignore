@@ -5,3 +5,4 @@ flush_db.sh
 todo
 .coverage
 mud.log
+.hypothesis*
