@@ -69,24 +69,24 @@ print_help(){
     cat <<EOF
 Setup everything needed to use mud.
 
-usage: setup.sh [--help] [--install|--setup]
+usage: setup.sh [-h] [-i] [-s]
 
 If no options are given, setup.sh will install dependencies and do 
 the database setup.
 
-Optins:
+Options:
 
-    --help      Print this message and exit.
-    --install   Install dependencies
-    --setup     Do the database setup
+    -h, --help      Print this message and exit.
+    -i, --install   Install dependencies
+    -s, --setup     Do the database setup
 
 EOF
 }
 
 case $1 in
-    --install) install_dependencies ;;
-    --setup) setup_database ;;
-    --help) print_help ; exit 0 ;;
+    "-i" | "--install") install_dependencies ;;
+    "-s" | "--setup") setup_database ;;
+    "-h" | "--help") print_help ; exit 0 ;;
     *)
         install_dependencies
         setup_database ;;
