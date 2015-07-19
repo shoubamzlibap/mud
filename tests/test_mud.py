@@ -7,12 +7,12 @@ import mock
 import warnings
 from MySQLdb import IntegrityError
 
-#path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-#if not path in sys.path:
-#    sys.path.insert(1, path)
-#del path
-#import settings
-#import mud
+try:
+    from hypothesis import given
+    from hypothesis.strategies import text, integers
+    import foobar
+except ImportError:
+    skip_hypothesis = True
 
 from .. import settings
 TEST_DB = 'mudtest'
@@ -22,6 +22,51 @@ from .. import mud
 
 
 SKIP_LONG_TESTS = True
+
+
+@unittest.skipIf(skip_hypothesis, 'hypothesis not installed ("pip install hypothesis" should fix this)')
+class testMudHypothesis(unittest.TestCase):
+    """ Test cases making use of the Hypothesis framework """
+
+    @classmethod
+    def setUp(self):
+        """Do database setup"""
+        # database creation
+        self.test_db = TEST_DB
+        test_db_user = settings.dejavu_config['database']['user']
+        test_db_pw = settings.dejavu_config['database']['passwd']
+        # NOTE: set the path to your db root pw file here - (do not test in production ;))
+        with open('/home/isaac/.db_root_pw', 'r') as db_root_pw_file:
+            self.db_root_pw = db_root_pw_file.read()
+        create_db_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
+        create_db_command = create_db_command.split() + ['CREATE DATABASE IF NOT EXISTS ' + self.test_db + ';']
+        grant_all_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
+        grant_all_command = grant_all_command.split() + \
+        ['grant all on ' + self.test_db + '.* to \'' + test_db_user + '\'@\'localhost\' identified by \'' + test_db_pw + '\';']
+        subprocess.call(create_db_command)
+        subprocess.call(grant_all_command)
+        self.db = mud.MudDatabase(**settings.dejavu_config.get('database',{}))
+        self.db.setup()
+
+    @classmethod
+    def tearDown(self):
+        """Delete test database"""
+        drop_db_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
+        drop_db_command = drop_db_command.split() + ['DROP DATABASE ' + self.test_db + ';']
+        subprocess.call(drop_db_command)
+
+    @given(text())
+    def test_add_song_file(self, song_file):
+        """Database takes all sorts of filenames"""
+        # just asserting no Exception is raised
+        mud.add_song_file(song_file)
+
+    @unittest.skip('This might test the wrong thing ...')
+    @given(text(), integers())
+    def test_add_to_collection(self, song_file, song_id):
+        """Taking all sorts of filenames and songids"""
+        # just asserting no Exceptino is raised 
+        mud.add_to_collection(song_file, song_id)
 
 class testMud(unittest.TestCase):
 
@@ -42,7 +87,7 @@ class testMud(unittest.TestCase):
         for f in self.files:
             open(self.music_base_dir + f, 'w').close()
         # test song
-        self.test_song = '/home/isaac/lucky_chops_renc/Lucky Chops/Lucky Chops - Lucky Chops - 08 Lean On Me.mp3'
+        self.test_song = '/home/isaac/Music/lucky_chops_renc/Lucky Chops/Lucky Chops - Lucky Chops - 08 Lean On Me.mp3'
         # database creation
         self.test_db = TEST_DB
         test_db_user = settings.dejavu_config['database']['user']
@@ -147,7 +192,7 @@ class testMud(unittest.TestCase):
         """
         Duplicates are returned correctly
         """
-        settings.music_base_dir = '/home/isaac'
+        settings.music_base_dir = '/home/isaac/Music'
         self.mud.scan_files()
         self.mud.build_collection()
         self.mud.print_duplicates()
