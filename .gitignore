@@ -4,3 +4,4 @@ settings.py
 flush_db.sh
 todo
 .coverage
+mud.log

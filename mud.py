@@ -6,7 +6,8 @@
 
 # Author: Isaac Hailperin <isaac.hailperin@gmail.com>
 #VERSION = 0.1  # APR-2015 | isaac | initial version
-VERSION = '0.1.1'  # JUL-2015 | isaac | some fixes for fedora 22 and utf8 encoding
+#VERSION = '0.1.1'  # JUL-2015 | isaac | some fixes for fedora 22 and utf8 encoding
+VERSION = '0.2.0'  # JUL-2015 | isaac | logfile and stderr with different levels configurable
 
 import argparse
 import logging
@@ -26,6 +27,8 @@ import eyed3
 logging.getLogger().handlers.pop()
 logging.setLoggerClass(logging.Logger)
 
+logger = logging.getLogger('mud')
+logger.setLevel(logging.DEBUG)
 
 LOG_LEVELS = {
     'info': logging.INFO,
@@ -33,7 +36,6 @@ LOG_LEVELS = {
     'warning': logging.WARNING,
     'error': logging.ERROR,
     'critical': logging.CRITICAL, }
-
 
 ERROR_CODES = {
     'CouldntDecodeError': -1,
@@ -277,11 +279,11 @@ def build_collection():
     to the song_id in dejavu.songs
 
     """
-    logging.info('Building collection')
+    logger.info('Building collection')
     for song_f in list_new_files():
-        logging.debug('Getting song id for ' + song_f)
+        logger.debug('Getting song id for ' + song_f)
         song_id = get_song_id(song_f)
-        logging.debug('Adding "' + song_f + '" to collection with song_id ' + str(song_id))
+        logger.debug('Adding "' + song_f + '" to collection with song_id ' + str(song_id))
         add_to_collection(song_f, song_id)
 
 
@@ -305,7 +307,7 @@ def add_to_collection(song_file, song_id):
             else:
                 tags[tag_name] = ''.encode('utf-8')
     else:
-        logging.warning('File without valid mp3 tag, using filename as "title": ' + song_file)
+        logger.warning('File without valid mp3 tag, using filename as "title": ' + song_file)
         tags['artist'] = ''.encode('utf-8')
         tags['title'] = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','').encode('utf-8')
         tags['album'] = ''.encode('utf-8')
@@ -322,7 +324,7 @@ def list_new_files():
     """
     Return a list of filenames from the database that are not yet fingerprinted.
     """
-    logging.debug('Getting not yet fingerprinted song files')
+    logger.debug('Getting not yet fingerprinted song files')
     for filepath in db.select_new_files():
         yield filepath['file_path']
 
@@ -336,24 +338,24 @@ def get_song_id(song_file):
     djv = Dejavu(settings.dejavu_config)
     song = None
     try:
-        logging.debug('Fingerprinting ' + song_file)
+        logger.debug('Fingerprinting ' + song_file)
         djv.fingerprint_file(song_file)
-        logging.debug('Recognizing ' + song_file)
+        logger.debug('Recognizing ' + song_file)
         song = djv.recognize(FileRecognizer, song_file)
     except pydub.exceptions.CouldntDecodeError:
-        logging.error('CouldntDecodeError raised for ' + song_file)
+        logger.error('CouldntDecodeError raised for ' + song_file)
         return ERROR_CODES['CouldntDecodeError']
     if song:
-        logging.debug('Successfully recognized ' + song_file + ' with song_id ' + str(song['song_id']))
+        logger.debug('Successfully recognized ' + song_file + ' with song_id ' + str(song['song_id']))
         return song['song_id']
     else:
-        logging.error('SongObjectIsNone raised for ' + song_file)
+        logger.error('SongObjectIsNone raised for ' + song_file)
         return ERROR_CODES['SongObjectIsNone']
 
 
 def scan_files():
     """Scan for music files and add them to the database."""
-    logging.info('Scanning music base dir for mp3 files')
+    logger.info('Scanning music base dir for mp3 files')
     for root, sub_folders, files in os.walk(settings.music_base_dir):
         for filepath in files:
             if filepath.endswith('.mp3') or filepath.endswith('.MP3'):
@@ -377,7 +379,7 @@ def get_duplicates():
     return song_ids (together with the song_files) that have more
     then one song_file pointing to them.
     """
-    logging.info('Getting duplicates')
+    logger.debug('Getting duplicates')
     duplicates = []
     for sid in db.select_song_ids():
         files = []
@@ -404,7 +406,7 @@ def print_duplicates():
 
 def print_stats():
     """Print some statistics."""
-    logging.info('Getting statistics')
+    logger.debug('Getting statistics')
     # Progress
     num_files = db.select_num_files()
     num_fingerprinted = db.select_num_fingerprinted()
@@ -422,10 +424,10 @@ def check_files():
     """
     Go through songfiles table and check if each file still exists on disk.
     """
-    logging.info('Checking all songs in database still exists on disk.')
+    logger.info('Checking all songs in database still exists on disk.')
     for song_file in db.select_all_song_files():
         if not os.path.isfile(song_file['file_path']):
-            logging.info('Deleting ' + song_file['file_path'] + ' from database.')
+            logger.info('Deleting ' + song_file['file_path'] + ' from database.')
             db.delete_song_file(song_file['file_path'])
 
 #
@@ -460,12 +462,12 @@ if __name__ == '__main__':
                         type=str,
                         default='warning',
                         help='Specify the log level. One of debug, info, warning, error, \
-                            critical. Default is warning.')
+                            critical. Default is "warning".')
     parser.add_argument('-v', '--verbosity-level',
                         type=str,
                         default='info',
                         help='Specify the verbosity level. One of debug, info, warning, \
-                            error, critical. Default is info.')
+                            error, critical. Default is "info".')
     args = parser.parse_args()
 
     # Logging
@@ -474,15 +476,27 @@ if __name__ == '__main__':
             print('\'' + level +  '\' is not a valid log ore verbosity level. Must be one of ' 
                 + str(LOG_LEVELS.keys()) + '.')
             exit()
-    # log file configuration
-#TODO: assignement of different logging levels does not work yet.
-    logging.basicConfig(filename=settings.log_file,
-        level=LOG_LEVELS[args.log_level],
-        format='%(asctime)s %(levelname)s: %(message)s',)
-    # logging to stderr configuration
-    stderr = logging.StreamHandler()
-    stderr.setLevel(LOG_LEVELS[args.verbosity_level])
-    logging.getLogger().addHandler(stderr)
+    # create file handler
+    fh = logging.FileHandler(settings.log_file)
+    fh.setLevel(LOG_LEVELS[args.log_level])
+    # create console handler
+    ch = logging.StreamHandler()
+    ch.setLevel(LOG_LEVELS[args.verbosity_level])
+    # create formatter and add it to the handlers
+    ch_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh_formatter = ch_formatter
+    ch.setFormatter(ch_formatter)
+    fh.setFormatter(fh_formatter)
+    # add the handlers to logger
+    logger.addHandler(ch)
+    logger.addHandler(fh)
+    try:
+        # this is probably not part of the public api
+        eyed3.utils.log.log.handlers.pop()
+        eyed3.utils.log.log.addHandler(ch)
+        eyed3.utils.log.log.addHandler(fh)
+    except AttributeError:
+        logger.warning('eyed3 log messages might not follow the general logging behaviour.')
 
     db.setup()
 
