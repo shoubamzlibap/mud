@@ -314,7 +314,7 @@ def add_to_collection(song_file, song_id):
     else:
         logger.warning('File without valid mp3 tag, using filename as "title": ' + song_file)
         tags['artist'] = ''.encode('utf-8')
-        tags['title'] = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','').encode('utf-8')
+        tags['title'] = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','').decode('utf-8').encode('utf-8')
         tags['album'] = ''.encode('utf-8')
     artist = tags['artist']
     title = tags['title']
