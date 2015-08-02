@@ -8,7 +8,8 @@ in your music collection.
 # Author: Isaac Hailperin <isaac.hailperin@gmail.com>
 #VERSION = 0.1  # APR-2015 | isaac | initial version
 #VERSION = '0.1.1'  # JUL-2015 | isaac | some fixes for fedora 22 and utf8 encoding
-VERSION = '0.2.0'  # JUL-2015 | isaac | logfile and stderr with different levels configurable
+#VERSION = '0.2.0'  # JUL-2015 | isaac | logfile and stderr with different levels configurable
+VERSION = '0.2.1'  # AUG-2015 | isaac | fix for Exceptions thrown by eyed3
 
 import argparse
 import logging
@@ -297,12 +298,18 @@ def add_to_collection(song_file, song_id):
     song_id: int, foreign key to songs database
 
     """
+    audio_file_tag = None
     try:
         audio_file = eyed3.load(song_file)
+        audio_file_tag = audio_file.tag
     except IOError:
         return
+    except eyed3.id3.tag.TagException:
+        pass
+    except Exception:
+        pass
     tags = {}
-    if audio_file.tag:
+    if audio_file_tag:
         tags['artist'] = audio_file.tag.artist
         tags['title'] = audio_file.tag.title
         tags['album'] = audio_file.tag.album
