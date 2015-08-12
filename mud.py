@@ -28,6 +28,30 @@ import eyed3
 logging.getLogger().handlers.pop()
 logging.setLoggerClass(logging.Logger)
 
+# eyed3 expects a verbose log level and function. So here we go, copying the
+# code from eyed3.utils.log
+# Add some levels
+logging.VERBOSE = logging.DEBUG + 1
+logging.addLevelName(logging.VERBOSE, "VERBOSE")
+
+class Logger(logging.Logger):
+    '''Base class for all loggers'''
+
+    def __init__(self, name):
+        logging.Logger.__init__(self, name)
+
+        # Using propogation of child to parent, by default
+        self.propagate = True
+        self.setLevel(logging.NOTSET)
+
+    def verbose(self, msg, *args, **kwargs):
+        '''Log \a msg at 'verbose' level, debug < verbose < info'''
+        self.log(logging.VERBOSE, msg, *args, **kwargs)
+
+
+logging.setLoggerClass(Logger)
+# end from eyed3
+
 logger = logging.getLogger('mud')
 logger.setLevel(logging.DEBUG)
 
