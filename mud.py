@@ -269,180 +269,183 @@ class MudDatabase(SQLDatabase):
             cur.execute(self.DELETE_SONG_FILE, [path])
 
 
-warnings.filterwarnings('ignore')
-db = MudDatabase(**settings.dejavu_config.get('database', {}))
+class mud(object):
+    """A mud instance with its database"""
+    def __init__(self):
+        warnings.filterwarnings('ignore')
+        self.db = MudDatabase(**settings.dejavu_config.get('database', {}))
+        self.db.setup()
+
+    def build_collection(self):
+        """
+        Go through the collection song by song and add them to the
+        dejavu database, if it is not already recognized.
+
+        In any case, create an entry in the song_files database, pointing
+        to the song_id in dejavu.songs
+
+        """
+        logger.info('Building collection')
+        for song_f in self.list_new_files():
+            logger.debug('Getting song id for ' + song_f)
+            song_id = self.get_song_id(song_f)
+            logger.debug('Adding "' + song_f + '" to collection with song_id ' + str(song_id))
+            self.add_to_collection(song_f, song_id)
 
 
-def build_collection():
-    """
-    Go through the collection song by song and add them to the
-    dejavu database, if it is not already recognized.
+    def add_to_collection(self, song_file, song_id):
+        """
+        Add song_file to collection, with foreign key song_id
 
-    In any case, create an entry in the song_files database, pointing
-    to the song_id in dejavu.songs
+        song_file: string, absolute path to sound file
+        song_id: int, foreign key to songs database
 
-    """
-    logger.info('Building collection')
-    for song_f in list_new_files():
-        logger.debug('Getting song id for ' + song_f)
-        song_id = get_song_id(song_f)
-        logger.debug('Adding "' + song_f + '" to collection with song_id ' + str(song_id))
-        add_to_collection(song_f, song_id)
-
-
-def add_to_collection(song_file, song_id):
-    """
-    Add song_file to collection, with foreign key song_id
-
-    song_file: string, absolute path to sound file
-    song_id: int, foreign key to songs database
-
-    """
-    audio_file_tag = None
-    try:
-        audio_file = eyed3.load(song_file)
-        audio_file_tag = audio_file.tag
-    except IOError:
-        return
-    except eyed3.id3.tag.TagException:
-        pass
-    except Exception:
-        pass
-    tags = {}
-    if audio_file_tag:
-        tags['artist'] = audio_file.tag.artist
-        tags['title'] = audio_file.tag.title
-        tags['album'] = audio_file.tag.album
-        for tag_name,tag_value in tags.iteritems():
-            if tag_value:
-                tags[tag_name] = tag_value.strip().encode('utf-8')
-            else:
-                tags[tag_name] = ''.encode('utf-8')
-    else:
-        logger.warning('File without valid mp3 tag, using filename as "title": ' + song_file)
-        tags['artist'] = ''.encode('utf-8')
-        tags['title'] = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','').decode('utf-8').encode('utf-8')
-        tags['album'] = ''.encode('utf-8')
-    artist = tags['artist']
-    title = tags['title']
-    album = tags['album']
-    if song_id > 0:
-        db.update_songfile(song_file, song_id, artist, title, album)
-    else:
-        db.update_error_on_songfile(song_file, artist, title, album, error_code=song_id)
+        """
+        audio_file_tag = None
+        try:
+            audio_file = eyed3.load(song_file)
+            audio_file_tag = audio_file.tag
+        except IOError:
+            return
+        except eyed3.id3.tag.TagException:
+            pass
+        except Exception:
+            pass
+        tags = {}
+        if audio_file_tag:
+            tags['artist'] = audio_file.tag.artist
+            tags['title'] = audio_file.tag.title
+            tags['album'] = audio_file.tag.album
+            for tag_name,tag_value in tags.iteritems():
+                if tag_value:
+                    tags[tag_name] = tag_value.strip().encode('utf-8')
+                else:
+                    tags[tag_name] = ''.encode('utf-8')
+        else:
+            logger.warning('File without valid mp3 tag, using filename as "title": ' + song_file)
+            tags['artist'] = ''.encode('utf-8')
+            tags['title'] = os.path.split(song_file)[1].replace('.mp3','').replace('.MP3','').decode('utf-8').encode('utf-8')
+            tags['album'] = ''.encode('utf-8')
+        artist = tags['artist']
+        title = tags['title']
+        album = tags['album']
+        if song_id > 0:
+            self.db.update_songfile(song_file, song_id, artist, title, album)
+        else:
+            self.db.update_error_on_songfile(song_file, artist, title, album, error_code=song_id)
 
 
-def list_new_files():
-    """
-    Return a list of filenames from the database that are not yet fingerprinted.
-    """
-    logger.debug('Getting not yet fingerprinted song files')
-    for filepath in db.select_new_files():
-        yield filepath['file_path']
+    def list_new_files(self):
+        """
+        Return a list of filenames from the database that are not yet fingerprinted.
+        """
+        logger.debug('Getting not yet fingerprinted song files')
+        for filepath in self.db.select_new_files():
+            yield filepath['file_path']
 
 
-def get_song_id(song_file):
-    """
-    Return song_id of song_file, fingerprint first if nessessary.
+    def get_song_id(self, song_file):
+        """
+        Return song_id of song_file, fingerprint first if nessessary.
 
-    song_file: string, absolute path to sound file
-    """
-    djv = Dejavu(settings.dejavu_config)
-    song = None
-    try:
-        logger.debug('Fingerprinting ' + song_file)
-        djv.fingerprint_file(song_file)
-        logger.debug('Recognizing ' + song_file)
-        song = djv.recognize(FileRecognizer, song_file)
-    except pydub.exceptions.CouldntDecodeError:
-        logger.error('CouldntDecodeError raised for ' + song_file)
-        return ERROR_CODES['CouldntDecodeError']
-    if song:
-        logger.debug('Successfully recognized ' + song_file + ' with song_id ' + str(song['song_id']))
-        return song['song_id']
-    else:
-        logger.error('SongObjectIsNone raised for ' + song_file)
-        return ERROR_CODES['SongObjectIsNone']
-
-
-def scan_files():
-    """Scan for music files and add them to the database."""
-    logger.info('Scanning music base dir for mp3 files')
-    for root, sub_folders, files in os.walk(settings.music_base_dir):
-        for filepath in files:
-            if filepath.endswith(('.mp3', '.MP3')):
-                path = os.path.join(root, filepath)
-                add_song_file(path.decode('utf-8'))
+        song_file: string, absolute path to sound file
+        """
+#NOTE: we might need to address this when moving to multiple instances
+        djv = Dejavu(settings.dejavu_config)
+        song = None
+        try:
+            logger.debug('Fingerprinting ' + song_file)
+            djv.fingerprint_file(song_file)
+            logger.debug('Recognizing ' + song_file)
+            song = djv.recognize(FileRecognizer, song_file)
+        except pydub.exceptions.CouldntDecodeError:
+            logger.error('CouldntDecodeError raised for ' + song_file)
+            return ERROR_CODES['CouldntDecodeError']
+        if song:
+            logger.debug('Successfully recognized ' + song_file + ' with song_id ' + str(song['song_id']))
+            return song['song_id']
+        else:
+            logger.error('SongObjectIsNone raised for ' + song_file)
+            return ERROR_CODES['SongObjectIsNone']
 
 
-def add_song_file(song_file):
-    """Add a song file to the database, if it not already exists."""
-    try:
-        db.insert_songfile(song_file.encode('utf-8'))
-        #db.insert_songfile(song_file)
-    except IntegrityError:
-        pass
+    def scan_files(self):
+        """Scan for music files and add them to the database."""
+        logger.info('Scanning music base dir for mp3 files')
+        for root, sub_folders, files in os.walk(settings.music_base_dir):
+            for filepath in files:
+                if filepath.endswith(('.mp3', '.MP3')):
+                    path = os.path.join(root, filepath)
+                    self.add_song_file(path.decode('utf-8'))
 
 
-def get_duplicates():
-    """
-    Query the database for duplicates.
-
-    This is achived by going through all song_ids and then list
-    all song_files that point to a certain song_id. Only
-    return song_ids (together with the song_files) that have more
-    then one song_file pointing to them.
-    """
-    logger.debug('Getting duplicates')
-    duplicates = []
-    for sid in db.select_song_ids():
-        files = []
-        for path in db.select_file_by_id(sid['song_id']):
-            files.append(path)
-        if len(files) > 1:
-            duplicates.append(files)
-    return duplicates
+    def add_song_file(self, song_file):
+        """Add a song file to the database, if it not already exists."""
+        try:
+            self.db.insert_songfile(song_file.encode('utf-8'))
+        except IntegrityError:
+            pass
 
 
-def print_duplicates():
-    """ Print duplicates to std out """
-    dups = get_duplicates()
-    if dups:
-        for sfiles in dups:
-            print('')
-            for sound_file in sfiles:
-                song_title = sound_file['song_title']
-                if not song_title: song_title = 'NO TITLE'
-                print(song_title + ' - ' + sound_file['file_path'])
-    else:
-        print('No duplicates found')
+    def get_duplicates(self):
+        """
+        Query the database for duplicates.
+
+        This is achived by going through all song_ids and then list
+        all song_files that point to a certain song_id. Only
+        return song_ids (together with the song_files) that have more
+        then one song_file pointing to them.
+        """
+        logger.debug('Getting duplicates')
+        duplicates = []
+        for sid in self.db.select_song_ids():
+            files = []
+            for path in self.db.select_file_by_id(sid['song_id']):
+                files.append(path)
+            if len(files) > 1:
+                duplicates.append(files)
+        return duplicates
 
 
-def print_stats():
-    """Print some statistics."""
-    logger.debug('Getting statistics')
-    # Progress
-    num_files = db.select_num_files()
-    num_fingerprinted = db.select_num_fingerprinted()
-    print('PROGRESS: ' + str(num_fingerprinted) + ' of ' + str(num_files) + ' fingerprinted.')
-    # Errors
-    for error_key in ERROR_CODES.keys():
-        num_errors = db.select_num_errors(error_key)
-        print('ERRORS: ' + str(num_errors) + ' ' + error_key)
-    # Duplicates
-    dups = get_duplicates()
-    print('DUPLICATES: ' + str(len(dups)) + ' duplicates found')
+    def print_duplicates(self):
+        """ Print duplicates to std out """
+        dups = self.get_duplicates()
+        if dups:
+            for sfiles in dups:
+                print('')
+                for sound_file in sfiles:
+                    song_title = sound_file['song_title']
+                    if not song_title: song_title = 'NO TITLE'
+                    print(song_title + ' - ' + sound_file['file_path'])
+        else:
+            print('No duplicates found')
 
 
-def check_files():
-    """
-    Go through songfiles table and check if each file still exists on disk.
-    """
-    logger.info('Checking all songs in database still exists on disk.')
-    for song_file in db.select_all_song_files():
-        if not os.path.isfile(song_file['file_path']):
-            logger.info('Deleting ' + song_file['file_path'] + ' from database.')
-            db.delete_song_file(song_file['file_path'])
+    def print_stats(self):
+        """Print some statistics."""
+        logger.debug('Getting statistics')
+        # Progress
+        num_files = self.db.select_num_files()
+        num_fingerprinted = self.db.select_num_fingerprinted()
+        print('PROGRESS: ' + str(num_fingerprinted) + ' of ' + str(num_files) + ' fingerprinted.')
+        # Errors
+        for error_key in ERROR_CODES.keys():
+            num_errors = self.db.select_num_errors(error_key)
+            print('ERRORS: ' + str(num_errors) + ' ' + error_key)
+        # Duplicates
+        dups = self.get_duplicates()
+        print('DUPLICATES: ' + str(len(dups)) + ' duplicates found')
+
+
+    def check_files(self):
+        """
+        Go through songfiles table and check if each file still exists on disk.
+        """
+        logger.info('Checking all songs in database still exists on disk.')
+        for song_file in self.db.select_all_song_files():
+            if not os.path.isfile(song_file['file_path']):
+                logger.info('Deleting ' + song_file['file_path'] + ' from database.')
+                self.db.delete_song_file(song_file['file_path'])
 
 #
 # CLI
@@ -512,18 +515,20 @@ if __name__ == '__main__':
     except AttributeError:
         logger.warning('eyed3 log messages might not follow the general logging behaviour.')
 
-    db.setup()
+    mud_instances = [mud()]
+#NOTE: this will probably be influenced by some cli switch
+    mud_inst = mud_instances[0]
 
     if args.Version:
         print(VERSION)
         exit(0)
     if args.scan:
-        scan_files()
+        mud_inst.scan_files()
     if args.build_collection:
-        build_collection()
+        mud_inst.build_collection()
     if args.check:
-        check_files()
+        mud_inst.check_files()
     if args.print_dups:
-        print_duplicates()
+        mud_inst.print_duplicates()
     if args.print_stats:
-        print_stats()
+        mud_inst.print_stats()

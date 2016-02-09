@@ -45,8 +45,9 @@ class testMudHypothesis(unittest.TestCase):
         ['grant all on ' + self.test_db + '.* to \'' + test_db_user + '\'@\'localhost\' identified by \'' + test_db_pw + '\';']
         subprocess.call(create_db_command)
         subprocess.call(grant_all_command)
-        self.db = mud.MudDatabase(**settings.dejavu_config.get('database',{}))
-        self.db.setup()
+        #self.db = mud.MudDatabase(**settings.dejavu_config.get('database',{}))
+        #self.db.setup()
+        self.mud = mud.mud() 
 
     @classmethod
     def tearDown(self):
@@ -59,14 +60,14 @@ class testMudHypothesis(unittest.TestCase):
     def test_add_song_file(self, song_file):
         """Database takes all sorts of filenames"""
         # just asserting no Exception is raised
-        mud.add_song_file(song_file)
+        self.mud.add_song_file(song_file)
 
-    @unittest.skip('This might test the wrong thing ...')
+    @unittest.skip('CODE NEEDS FIX, test seems OK')
     @given(text(), integers())
     def test_add_to_collection(self, song_file, song_id):
         """Taking all sorts of filenames and songids"""
         # just asserting no Exceptino is raised 
-        mud.add_to_collection(song_file, song_id)
+        self.mud.add_to_collection(song_file, song_id)
 
 class testMud(unittest.TestCase):
 
@@ -102,11 +103,9 @@ class testMud(unittest.TestCase):
         ['grant all on ' + self.test_db + '.* to \'' + test_db_user + '\'@\'localhost\' identified by \'' + test_db_pw + '\';']
         subprocess.call(create_db_command)
         subprocess.call(grant_all_command)
-        self.mud = mud # TODO: do we need this?
+        self.mud = mud.mud() 
         # create database object for later usage
         warnings.filterwarnings('ignore')
-        self.db = mud.MudDatabase(**settings.dejavu_config.get('database',{}))
-        self.db.setup()
 
     @classmethod
     def tearDown(self):
@@ -115,7 +114,7 @@ class testMud(unittest.TestCase):
         drop_db_command = drop_db_command.split() + ['DROP DATABASE ' + self.test_db + ';']
         subprocess.call(drop_db_command)
 
-    @mock.patch('mud.mud.add_song_file', gp_mock.add_song_file )
+    @mock.patch('mud.mud.mud.add_song_file', gp_mock.add_song_file )
     def test_scan_files(self):
         """
         Files in testdir scanned correctly
@@ -200,7 +199,7 @@ class testMud(unittest.TestCase):
         self.assertTrue(len(dups) > 0)
 
 
-    @mock.patch('mud.mud.db.delete_song_file', gp_mock.delete_song_file )
+    @mock.patch('mud.mud.MudDatabase.delete_song_file', gp_mock.delete_song_file )
     def test_check_files(self):
         """
         Files no longer present are deleted from database
