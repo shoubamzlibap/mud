@@ -10,7 +10,7 @@ from MySQLdb import IntegrityError
 try:
     from hypothesis import given
     from hypothesis.strategies import text, integers
-    import foobar
+    skip_hypothesis = False
 except ImportError:
     skip_hypothesis = True
 
