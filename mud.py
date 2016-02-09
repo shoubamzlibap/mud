@@ -69,7 +69,6 @@ ERROR_CODES = {
     }
 
 class MudDatabase(SQLDatabase):
-
     """
     Shamelessly stealing database code from dejavu.
     """
@@ -295,10 +294,17 @@ class MudDatabase(SQLDatabase):
 
 class mud(object):
     """A mud instance with its database"""
-    def __init__(self):
+
+    def __init__(self, dejavu_config):
+        """
+        Initialize the database and create a Dejavu object
+
+        dejavu_config: dict, config needed for dejavu
+        """
         warnings.filterwarnings('ignore')
-        self.db = MudDatabase(**settings.dejavu_config.get('database', {}))
+        self.db = MudDatabase(**dejavu_config.get('database', {}))
         self.db.setup()
+        self.djv = Dejavu(dejavu_config)
 
     def build_collection(self):
         """
@@ -315,7 +321,6 @@ class mud(object):
             song_id = self.get_song_id(song_f)
             logger.debug('Adding "' + song_f + '" to collection with song_id ' + str(song_id))
             self.add_to_collection(song_f, song_id)
-
 
     def add_to_collection(self, song_file, song_id):
         """
@@ -358,7 +363,6 @@ class mud(object):
         else:
             self.db.update_error_on_songfile(song_file, artist, title, album, error_code=song_id)
 
-
     def list_new_files(self):
         """
         Return a list of filenames from the database that are not yet fingerprinted.
@@ -367,21 +371,18 @@ class mud(object):
         for filepath in self.db.select_new_files():
             yield filepath['file_path']
 
-
     def get_song_id(self, song_file):
         """
         Return song_id of song_file, fingerprint first if nessessary.
 
         song_file: string, absolute path to sound file
         """
-#NOTE: we might need to address this when moving to multiple instances
-        djv = Dejavu(settings.dejavu_config)
         song = None
         try:
             logger.debug('Fingerprinting ' + song_file)
-            djv.fingerprint_file(song_file)
+            self.djv.fingerprint_file(song_file)
             logger.debug('Recognizing ' + song_file)
-            song = djv.recognize(FileRecognizer, song_file)
+            song = self.djv.recognize(FileRecognizer, song_file)
         except pydub.exceptions.CouldntDecodeError:
             logger.error('CouldntDecodeError raised for ' + song_file)
             return ERROR_CODES['CouldntDecodeError']
@@ -392,7 +393,6 @@ class mud(object):
             logger.error('SongObjectIsNone raised for ' + song_file)
             return ERROR_CODES['SongObjectIsNone']
 
-
     def scan_files(self):
         """Scan for music files and add them to the database."""
         logger.info('Scanning music base dir for mp3 files')
@@ -402,14 +402,12 @@ class mud(object):
                     path = os.path.join(root, filepath)
                     self.add_song_file(path.decode('utf-8'))
 
-
     def add_song_file(self, song_file):
         """Add a song file to the database, if it not already exists."""
         try:
             self.db.insert_songfile(song_file.encode('utf-8'))
         except IntegrityError:
             pass
-
 
     def get_duplicates(self):
         """
@@ -430,7 +428,6 @@ class mud(object):
                 duplicates.append(files)
         return duplicates
 
-
     def print_duplicates(self):
         """ Print duplicates to std out """
         dups = self.get_duplicates()
@@ -443,7 +440,6 @@ class mud(object):
                     print(song_title + ' - ' + sound_file['file_path'])
         else:
             print('No duplicates found')
-
 
     def print_stats(self):
         """Print some statistics."""
@@ -459,7 +455,6 @@ class mud(object):
         # Duplicates
         dups = self.get_duplicates()
         print('DUPLICATES: ' + str(len(dups)) + ' duplicates found')
-
 
     def check_files(self):
         """
@@ -539,7 +534,7 @@ if __name__ == '__main__':
     except AttributeError:
         logger.warning('eyed3 log messages might not follow the general logging behaviour.')
 
-    mud_instances = [mud()]
+    mud_instances = [mud(config) for config in settings.dejavu_configs]
 #NOTE: this will probably be influenced by some cli switch
     mud_inst = mud_instances[0]
 
