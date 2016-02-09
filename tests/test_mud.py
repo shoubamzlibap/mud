@@ -7,6 +7,14 @@ import mock
 import warnings
 from MySQLdb import IntegrityError
 
+###
+# Settings
+###
+SKIP_LONG_TESTS = True
+###
+# End Settings
+###
+
 try:
     from hypothesis import given
     from hypothesis.strategies import text, integers
@@ -15,13 +23,45 @@ except ImportError:
     skip_hypothesis = True
 
 from .. import settings
-TEST_DB = 'mudtest'
-settings.dejavu_config['database']['db'] = TEST_DB
-# import mud AFTER patching settings
 from .. import mud
 
+def get_db_root_pw():
+    """Do exactly this"""
+    # NOTE: set the path to your db root pw file here - (do not test in production ;))
+    with open('/home/isaac/.db_root_pw', 'r') as db_root_pw_file:
+        return db_root_pw_file.read()
 
-SKIP_LONG_TESTS = True
+def db_setup():
+    """
+    Do the database setup, patching the values in the settings module
+    """
+    i = 1
+    new_configs = []
+    db_root_pw = get_db_root_pw()
+    for config in settings.dejavu_configs:
+        config['database']['db'] = 'test_dejavu_' + str(i)
+        new_configs.append(config)
+        i += 1
+        test_db = config['database']['db']
+        test_db_user = config['database']['user']
+        test_db_pw = config['database']['passwd']
+        create_db_command = 'mysql -u root --password=' + db_root_pw + ' -e'
+        create_db_command = create_db_command.split() + ['CREATE DATABASE IF NOT EXISTS ' + test_db + ';']
+        grant_all_command = 'mysql -u root --password=' + db_root_pw + ' -e'
+        grant_all_command = grant_all_command.split() + \
+        ['grant all on ' + test_db + '.* to \'' + test_db_user + '\'@\'localhost\' identified by \'' + test_db_pw + '\';']
+        subprocess.call(create_db_command)
+        subprocess.call(grant_all_command)
+    settings.dejavu_configs = new_configs
+
+def db_teardown():
+    """Tear down dbs created for testing"""
+    db_root_pw = get_db_root_pw()
+    for config in settings.dejavu_configs:
+        test_db = config['database']['db']
+        drop_db_command = 'mysql -u root --password=' + db_root_pw + ' -e'
+        drop_db_command = drop_db_command.split() + ['DROP DATABASE ' + test_db + ';']
+        subprocess.call(drop_db_command)
 
 
 @unittest.skipIf(skip_hypothesis, 'hypothesis not installed ("pip install hypothesis" should fix this)')
@@ -31,30 +71,14 @@ class testMudHypothesis(unittest.TestCase):
     @classmethod
     def setUp(self):
         """Do database setup"""
-        # database creation
-        self.test_db = TEST_DB
-        test_db_user = settings.dejavu_config['database']['user']
-        test_db_pw = settings.dejavu_config['database']['passwd']
-        # NOTE: set the path to your db root pw file here - (do not test in production ;))
-        with open('/home/isaac/.db_root_pw', 'r') as db_root_pw_file:
-            self.db_root_pw = db_root_pw_file.read()
-        create_db_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
-        create_db_command = create_db_command.split() + ['CREATE DATABASE IF NOT EXISTS ' + self.test_db + ';']
-        grant_all_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
-        grant_all_command = grant_all_command.split() + \
-        ['grant all on ' + self.test_db + '.* to \'' + test_db_user + '\'@\'localhost\' identified by \'' + test_db_pw + '\';']
-        subprocess.call(create_db_command)
-        subprocess.call(grant_all_command)
-        #self.db = mud.MudDatabase(**settings.dejavu_config.get('database',{}))
-        #self.db.setup()
-        self.mud = mud.mud() 
+        db_setup()
+        self.mud_instances = [mud.mud(config) for config in settings.dejavu_configs]
+        self.mud = self.mud_instances[0]
 
     @classmethod
     def tearDown(self):
         """Delete test database"""
-        drop_db_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
-        drop_db_command = drop_db_command.split() + ['DROP DATABASE ' + self.test_db + ';']
-        subprocess.call(drop_db_command)
+        db_teardown()
 
     @given(text())
     def test_add_song_file(self, song_file):
@@ -90,29 +114,14 @@ class testMud(unittest.TestCase):
         # test song
         self.test_song = '/home/isaac/Music/lucky_chops_renc/Lucky Chops/Lucky Chops - Lucky Chops - 08 Lean On Me.mp3'
         # database creation
-        self.test_db = TEST_DB
-        test_db_user = settings.dejavu_config['database']['user']
-        test_db_pw = settings.dejavu_config['database']['passwd']
-        # NOTE: set the path to your db root pw file here - (do not test in production ;))
-        with open('/home/isaac/.db_root_pw', 'r') as db_root_pw_file:
-            self.db_root_pw = db_root_pw_file.read()
-        create_db_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
-        create_db_command = create_db_command.split() + ['CREATE DATABASE IF NOT EXISTS ' + self.test_db + ';']
-        grant_all_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
-        grant_all_command = grant_all_command.split() + \
-        ['grant all on ' + self.test_db + '.* to \'' + test_db_user + '\'@\'localhost\' identified by \'' + test_db_pw + '\';']
-        subprocess.call(create_db_command)
-        subprocess.call(grant_all_command)
-        self.mud = mud.mud() 
-        # create database object for later usage
-        warnings.filterwarnings('ignore')
+        db_setup()
+        self.mud_instances = [mud.mud(config) for config in settings.dejavu_configs]
+        self.mud = self.mud_instances[0]
 
     @classmethod
     def tearDown(self):
         subprocess.call(['rm', '-rf', self.music_base_dir])
-        drop_db_command = 'mysql -u root --password=' + self.db_root_pw + ' -e'
-        drop_db_command = drop_db_command.split() + ['DROP DATABASE ' + self.test_db + ';']
-        subprocess.call(drop_db_command)
+        db_teardown()
 
     @mock.patch('mud.mud.mud.add_song_file', gp_mock.add_song_file )
     def test_scan_files(self):
