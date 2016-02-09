@@ -19,24 +19,10 @@ install_dependencies(){
 }
 
 # create settings.py file with the db credentials
-create_settings(){
-    user_name=$1
-    user_pw=$2
-    db_name=$3
+create_settings_head(){
     cat >>settings.py<<EOF
 # settings.py
 # settins file for mud
-
-# dejavu db settings
-dejavu_config = {
-     'database': {
-         'host': '127.0.0.1',
-         'user': '${user_name}',
-         'passwd': '${user_pw}', 
-         'db': '${db_name}',
-     },
-    'fingerprint_limit' : 30,
- }
 
 # base directory for music files
 music_base_dir = '/tmp'
@@ -44,25 +30,55 @@ music_base_dir = '/tmp'
 # localtion and name of the log file
 log_file = 'mud.log'
 
+# dejavu db settings
+dejavu_configs = [
 EOF
-    
+}
+
+create_settings_db(){
+    user_name=$1
+    user_pw=$2
+    db_name=$3
+    fp_limit=$4
+    cat >>settings.py<<EOF
+    {   'database': {
+            'host': '127.0.0.1',
+            'user': '${user_name}',
+            'passwd': '${user_pw}', 
+            'db': '${db_name}',},
+        'fingerprint_limit' : ${fp_limit}, },
+EOF
+}
+
+create_settings_end(){
+    cat >>settings.py<<EOF
+]
+EOF
 }
 
 # setup database
 # assuming local database
 setup_database(){
+    # number of databases to create
+    num_dbs=3
+    # factor for initial fingerprint length config
+    fp_factor=10 
     echo "Warning: if someone else is logged in to this system right now, it might be"
     echo "able to read the MariaDB root password from the process list"
     echo
     read -ers -p "Please enter MariaDB root password:" rootpw
     echo
-    db_name="dejavu"
-    mysql -u root --password=${rootpw} -e "CREATE DATABASE IF NOT EXISTS ${db_name};"
     user_name="dejavu-admin"
     user_pw=$(openssl rand -base64 23)
-    mysql -u root --password=${rootpw} -e "grant all on dejavu.* to '${user_name}'@'localhost' identified by '${user_pw}';"
-    create_settings ${user_name} ${user_pw} ${db_name}
-    
+    create_settings_head
+    for i in $(seq ${num_dbs}); do
+        db_name="dejavu_${i}"
+        mysql -u root --password=${rootpw} -e "CREATE DATABASE IF NOT EXISTS ${db_name};"
+        mysql -u root --password=${rootpw} -e "grant all on ${db_name}.* to '${user_name}'@'localhost' identified by '${user_pw}';"
+        fp_length=$(( ${i} * ${fp_factor} ))
+        create_settings_db ${user_name} ${user_pw} ${db_name} ${fp_length}
+    done
+    create_settings_end
 }
 
 print_help(){
