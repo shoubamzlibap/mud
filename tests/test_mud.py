@@ -72,8 +72,7 @@ class testMudHypothesis(unittest.TestCase):
     def setUp(self):
         """Do database setup"""
         db_setup()
-        self.mud_instances = [mud.mud(config) for config in settings.dejavu_configs]
-        self.mud = self.mud_instances[0]
+        self.mud = mud.mud(0)
 
     @classmethod
     def tearDown(self):
@@ -115,8 +114,7 @@ class testMud(unittest.TestCase):
         self.test_song = '/home/isaac/Music/lucky_chops_renc/Lucky Chops/Lucky Chops - Lucky Chops - 08 Lean On Me.mp3'
         # database creation
         db_setup()
-        self.mud_instances = [mud.mud(config) for config in settings.dejavu_configs]
-        self.mud = self.mud_instances[0]
+        self.mud = mud.mud(0)
 
     @classmethod
     def tearDown(self):

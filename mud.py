@@ -68,6 +68,7 @@ ERROR_CODES = {
     'SongObjectIsNone': -2,
     }
 
+
 class MudDatabase(SQLDatabase):
     """
     Shamelessly stealing database code from dejavu.
@@ -295,16 +296,18 @@ class MudDatabase(SQLDatabase):
 class mud(object):
     """A mud instance with its database"""
 
-    def __init__(self, dejavu_config):
+    def __init__(self, inst_num):
         """
         Initialize the database and create a Dejavu object
 
-        dejavu_config: dict, config needed for dejavu
+        inst_num: the number of the instance - 0 would be the primary instance, 1 the secondary, ...
         """
         warnings.filterwarnings('ignore')
+        dejavu_config = settings.dejavu_configs[inst_num]
         self.db = MudDatabase(**dejavu_config.get('database', {}))
         self.db.setup()
         self.djv = Dejavu(dejavu_config)
+        self.inst_num = inst_num
 
     def build_collection(self):
         """
@@ -395,6 +398,9 @@ class mud(object):
 
     def scan_files(self):
         """Scan for music files and add them to the database."""
+        if self.inst_num != 0: 
+            logger.error('File scanning not permitted for non-primary instance')
+            return
         logger.info('Scanning music base dir for mp3 files')
         for root, sub_folders, files in os.walk(settings.music_base_dir):
             for filepath in files:
@@ -469,43 +475,14 @@ class mud(object):
 #
 # CLI
 #
-if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(
-        description='Check for duplicates in your music collection. mud will \
-            find all duplicates, even if the file is encoded at a different \
-            bitrate. And of course it won\'t be fooled by tags :)')
-    parser.add_argument('-s', '--scan',
-                        action='store_true',
-                        help='Scan music directory for new files.')
-    parser.add_argument('-b', '--build-collection',
-                        action='store_true',
-                        help='Go through collection and build database of \
-                            audio fingerprints.')
-    parser.add_argument('-p', '--print-dups',
-                        action='store_true',
-                        help='Print all duplicates found.')
-    parser.add_argument('-t', '--print-stats',
-                        action='store_true',
-                        help='Print some statistics and progress information.')
-    parser.add_argument('-c', '--check',
-                        action='store_true',
-                        help='Check if files in database still exist on disk.')
-    parser.add_argument('-V', '--Version',
-                        action='store_true',
-                        help='Display version.')
-    parser.add_argument('-l', '--log-level',
-                        type=str,
-                        default='warning',
-                        help='Specify the log level. One of debug, info, warning, error, \
-                            critical. Default is "warning".')
-    parser.add_argument('-v', '--verbosity-level',
-                        type=str,
-                        default='info',
-                        help='Specify the verbosity level. One of debug, info, warning, \
-                            error, critical. Default is "info".')
-    args = parser.parse_args()
+def logging_setup(args):
+    """
+    Do setup of logging infrastructure.
+    
+    args: cli args as returnded by argparse.ArgumentParser.parse_args()
 
+    """
     # Logging
     for level in [args.log_level, args.verbosity_level]:
         if not LOG_LEVELS.get(level, None):
@@ -534,9 +511,49 @@ if __name__ == '__main__':
     except AttributeError:
         logger.warning('eyed3 log messages might not follow the general logging behaviour.')
 
-    mud_instances = [mud(config) for config in settings.dejavu_configs]
-#NOTE: this will probably be influenced by some cli switch
-    mud_inst = mud_instances[0]
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Check for duplicates in your music collection. mud will \
+            find all duplicates, even if the file is encoded at a different \
+            bitrate. And of course it won\'t be fooled by tags :)')
+    parser.add_argument('-s', '--scan',
+                        action='store_true',
+                        help='Scan music directory for new files. Only permited for primary instance (see -i)')
+    parser.add_argument('-b', '--build-collection',
+                        action='store_true',
+                        help='Go through collection and build database of \
+                            audio fingerprints.')
+    parser.add_argument('-p', '--print-dups',
+                        action='store_true',
+                        help='Print all duplicates found.')
+    parser.add_argument('-t', '--print-stats',
+                        action='store_true',
+                        help='Print some statistics and progress information.')
+    parser.add_argument('-c', '--check',
+                        action='store_true',
+                        help='Check if files in database still exist on disk.')
+    parser.add_argument('-i', '--instance-number',
+                        type=int,
+                        default=0,
+                        help='Specify the instance number. Default is 0, which is considered the "primary" instance.')
+    parser.add_argument('-V', '--Version',
+                        action='store_true',
+                        help='Display version.')
+    parser.add_argument('-l', '--log-level',
+                        type=str,
+                        default='warning',
+                        help='Specify the log level. One of debug, info, warning, error, \
+                            critical. Default is "warning".')
+    parser.add_argument('-v', '--verbosity-level',
+                        type=str,
+                        default='info',
+                        help='Specify the verbosity level. One of debug, info, warning, \
+                            error, critical. Default is "info".')
+    args = parser.parse_args()
+
+    logging_setup(args)
+
+    mud_inst = mud(args.instance_number)
 
     if args.Version:
         print(VERSION)
