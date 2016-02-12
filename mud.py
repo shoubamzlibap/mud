@@ -22,6 +22,8 @@ from dejavu import Dejavu
 from dejavu.database_sql import SQLDatabase, cursor_factory, DictCursor
 from dejavu.recognize import FileRecognizer
 import pydub
+from multiprocessing import Process
+from multiprocessing import Queue as MPQueue 
 
 # unset eyed3 global log configuration
 # https://bitbucket.org/nicfit/eyed3/issues/91/dont-configure-global-logging-settings
@@ -415,23 +417,32 @@ class mud(object):
         except IntegrityError:
             pass
 
-    def get_duplicates(self):
+    def yield_duplicates(self):
         """
-        Query the database for duplicates.
+        Query the database for duplicates and yield lists of duplicate song files
 
         This is achived by going through all song_ids and then list
         all song_files that point to a certain song_id. Only
         return song_ids (together with the song_files) that have more
         then one song_file pointing to them.
         """
-        logger.debug('Getting duplicates')
-        duplicates = []
         for sid in self.db.select_song_ids():
             files = []
             for path in self.db.select_file_by_id(sid['song_id']):
                 files.append(path)
             if len(files) > 1:
-                duplicates.append(files)
+                logger.debug('Yielding duplicate song id ' + str(sid['song_id']))
+                yield files
+
+
+    def get_duplicates(self):
+        """
+        Query the database for duplicates.
+        """
+        logger.debug('Getting duplicates')
+        duplicates = []
+        for files in self.yield_duplicates():
+            duplicates.append(files)
         return duplicates
 
     def print_duplicates(self):
@@ -471,6 +482,44 @@ class mud(object):
             if not os.path.isfile(song_file['file_path']):
                 logger.info('Deleting ' + song_file['file_path'] + ' from database.')
                 self.db.delete_song_file(song_file['file_path'])
+
+def fill_dupes(inst_num, queue):
+    """
+    Create a mud instance and fill queue with duplicates.
+    
+    inst_num: int, the number 
+    """
+    mud_inst = mud(inst_num)
+    for files in mud_inst.yield_duplicates():
+        queue.put(files)
+    queue.put(None)
+
+def pass_duplicates(args):
+    """
+    Pass possible duplicates from one instance to the next instance.
+
+    args: cli args. args.fill_instance is the instance duplicates should be passed to
+    """
+    if args.fill_instance < 1: raise Exception('Instance number must be > 0')
+    num_inst = len(settings.dejavu_configs) - 1
+    if args.fill_instance > num_inst:
+        logger.error('Instance number too high, maximum is ' + str(num_inst))
+        return
+    logger.info('Filling instance no ' + str(args.fill_instance) + ' with duplicate canditates')
+    queue = MPQueue()
+    p = Process(target=fill_dupes, args=(args.fill_instance -1, queue))
+    p.start()
+    mud_inst = mud(args.fill_instance)
+    counter = 0
+    while True:
+        files = queue.get()
+        if not files:
+            break
+        for song_file in files:
+            mud_inst.add_song_file(song_file['file_path'].decode('utf-8'))
+            counter += 1
+    p.join()
+    logger.info('Filled instace no ' + str(args.fill_instance) + ' with ' + str(counter) + ' possible duplicates')
 
 #
 # CLI
@@ -536,6 +585,10 @@ if __name__ == '__main__':
                         type=int,
                         default=0,
                         help='Specify the instance number. Default is 0, which is considered the "primary" instance.')
+    parser.add_argument('-f', '--fill-instance',
+                        type=int,
+                        default=0,
+                        help='Specify the instance to fill with possible duplicates. Argument must >= 1, if < 1 nothing will happen.')
     parser.add_argument('-V', '--Version',
                         action='store_true',
                         help='Display version.')
@@ -553,11 +606,14 @@ if __name__ == '__main__':
 
     logging_setup(args)
 
-    mud_inst = mud(args.instance_number)
-
     if args.Version:
         print(VERSION)
         exit(0)
+    if args.fill_instance > 0:
+        pass_duplicates(args)
+
+    mud_inst = mud(args.instance_number)
+
     if args.scan:
         mud_inst.scan_files()
     if args.build_collection:
