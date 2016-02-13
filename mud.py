@@ -560,7 +560,10 @@ def logging_setup(args):
     except AttributeError:
         logger.warning('eyed3 log messages might not follow the general logging behaviour.')
 
-if __name__ == '__main__':
+def parse_cli_args():
+    """
+    Parse cli args and return an object with the given args
+    """
     parser = argparse.ArgumentParser(
         description='Check for duplicates in your music collection. mud will \
             find all duplicates, even if the file is encoded at a different \
@@ -602,18 +605,17 @@ if __name__ == '__main__':
                         default='info',
                         help='Specify the verbosity level. One of debug, info, warning, \
                             error, critical. Default is "info".')
-    args = parser.parse_args()
-
+    return parser.parse_args()
+ 
+if __name__ == '__main__':
+    args = parse_cli_args()
     logging_setup(args)
-
     if args.Version:
         print(VERSION)
         exit(0)
     if args.fill_instance > 0:
         pass_duplicates(args)
-
     mud_inst = mud(args.instance_number)
-
     if args.scan:
         mud_inst.scan_files()
     if args.build_collection:
