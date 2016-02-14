@@ -1,6 +1,8 @@
 #!/bin/bash
 # setup.sh
 
+settings=settings.py
+
 # install dependencies
 install_dependencies(){
     # enable Fusion repos if not already done
@@ -18,10 +20,13 @@ install_dependencies(){
     sudo systemctl enable mariadb
 }
 
-# create settings.py file with the db credentials
+# create settings file with the db credentials
 create_settings_head(){
-    cat >>settings.py<<EOF
-# settings.py
+    if [ -e ${settings} ]; then
+        mv ${settings} ${settings}.$$
+    fi
+    cat >>${settings}<<EOF
+# ${settings}
 # settins file for mud
 
 # base directory for music files
@@ -40,7 +45,7 @@ create_settings_db(){
     user_pw=$2
     db_name=$3
     fp_limit=$4
-    cat >>settings.py<<EOF
+    cat >>${settings}<<EOF
     {   'database': {
             'host': '127.0.0.1',
             'user': '${user_name}',
@@ -51,7 +56,7 @@ EOF
 }
 
 create_settings_end(){
-    cat >>settings.py<<EOF
+    cat >>${settings}<<EOF
 ]
 EOF
 }
