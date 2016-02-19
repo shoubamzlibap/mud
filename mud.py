@@ -505,7 +505,7 @@ def pass_duplicates(args):
     if args.fill_instance > num_inst:
         logger.error('Instance number too high, maximum is ' + str(num_inst))
         return
-    logger.info('Filling instance no ' + str(args.fill_instance) + ' with duplicate canditates')
+    logger.info('Filling instance no ' + str(args.fill_instance) + ' with duplicate candidates')
     queue = MPQueue()
     p = Process(target=fill_dupes, args=(args.fill_instance -1, queue))
     p.start()
