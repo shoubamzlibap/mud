@@ -174,9 +174,10 @@ def delete_empty_dirs(dir_list):
             except OSError:
                 pass
 
-(recursive_file_list, dir_list) = get_recursive_file_list(dir_with_dupes)
-duplicates = get_duplicates(recursive_file_list)
-move_files(duplicates)
-delete_empty_dirs(dir_list)
+if __name__ == "__main__":
+    (recursive_file_list, dir_list) = get_recursive_file_list(dir_with_dupes)
+    duplicates = get_duplicates(recursive_file_list)
+    move_files(duplicates)
+    delete_empty_dirs(dir_list)
 
 
