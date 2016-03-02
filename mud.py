@@ -9,14 +9,16 @@ in your music collection.
 #VERSION = 0.1  # APR-2015 | isaac | initial version
 #VERSION = '0.1.1'  # JUL-2015 | isaac | some fixes for fedora 22 and utf8 encoding
 #VERSION = '0.2.0'  # JUL-2015 | isaac | logfile and stderr with different levels configurable
-VERSION = '0.2.1'  # AUG-2015 | isaac | fix for Exceptions thrown by eyed3
+#VERSION = '0.2.1'  # AUG-2015 | isaac | fix for Exceptions thrown by eyed3
+VERSION = '0.3.0'  # MAR-2016 | isaac | finding duplicate albums
 
 import argparse
+import collections
 import logging
-import os
 from MySQLdb import IntegrityError
-import warnings
+import os
 import settings
+import warnings
 
 from dejavu import Dejavu
 from dejavu.database_sql import SQLDatabase, cursor_factory, DictCursor
@@ -438,7 +440,6 @@ class mud(object):
                 logger.debug('Yielding duplicate song id ' + str(sid['song_id']))
                 yield files
 
-
     def get_duplicates(self):
         """
         Query the database for duplicates.
@@ -452,15 +453,40 @@ class mud(object):
     def print_duplicates(self):
         """ Print duplicates to std out """
         dups = self.get_duplicates()
-        if dups:
-            for sfiles in dups:
-                print('')
-                for sound_file in sfiles:
-                    song_title = sound_file['song_title']
-                    if not song_title: song_title = 'NO TITLE'
-                    print(song_title + ' - ' + sound_file['file_path'])
-        else:
+        if not dups:
             print('No duplicates found')
+            return
+        for sfiles in dups:
+            print('')
+            for sound_file in sfiles:
+                song_title = sound_file['song_title']
+                if not song_title: song_title = 'NO TITLE'
+                print(song_title + ' - ' + sound_file['file_path'])
+
+    def get_dup_albums(self):
+        """
+        Get duplicate albums
+        """
+        logger.info('Assembling duplicate Albums')
+        albums = collections.defaultdict(list)
+        for files in self.yield_duplicates():
+            albums[os.path.dirname(files[0]['file_path'])] += [
+                os.path.dirname(f['file_path']) for f in files[1:]]
+        return albums
+
+    def print_dup_albums(self):
+        """
+        Print duplicate albums
+        """
+        dup_albums = self.get_dup_albums()
+        if not dup_albums:
+            print('No albums found')
+            return
+        for album,dup_albums in dup_albums.iteritems():
+            print
+            print(album)
+            for dup_album in dup_albums:
+                print('    ' + dup_album)
 
     def print_stats(self):
         """Print some statistics."""
@@ -537,7 +563,7 @@ def logging_setup(args):
         if not LOG_LEVELS.get(level, None):
             print('\'' + level +  '\' is not a valid log ore verbosity level. Must be one of ' 
                 + str(LOG_LEVELS.keys()) + '.')
-            exit()
+            exit(0)
     # create file handler
     fh = logging.FileHandler(settings.log_file)
     fh.setLevel(LOG_LEVELS[args.log_level])
@@ -578,6 +604,9 @@ def parse_cli_args():
     parser.add_argument('-p', '--print-dups',
                         action='store_true',
                         help='Print all duplicates found.')
+    parser.add_argument('-a', '--print-dup-albums',
+                        action='store_true',
+                        help='Print all duplicate albums found.')
     parser.add_argument('-t', '--print-stats',
                         action='store_true',
                         help='Print some statistics and progress information.')
@@ -624,5 +653,7 @@ if __name__ == '__main__':
         mud_inst.check_files()
     if args.print_dups:
         mud_inst.print_duplicates()
+    if args.print_dup_albums:
+        mud_inst.print_dup_albums()
     if args.print_stats:
         mud_inst.print_stats()
