@@ -304,6 +304,10 @@ class mud(object):
 
         inst_num: the number of the instance - 0 would be the primary instance, 1 the secondary, ...
         """
+        num_inst = len(settings.dejavu_configs) - 1
+        if inst_num > num_inst:
+            logger.error('Instance number too high, maximum is ' + str(num_inst))
+            return
         warnings.filterwarnings('ignore')
         dejavu_config = settings.dejavu_configs[inst_num]
         self.db = MudDatabase(**dejavu_config.get('database', {}))
@@ -501,15 +505,11 @@ def pass_duplicates(args):
     args: cli args. args.fill_instance is the instance duplicates should be passed to
     """
     if args.fill_instance < 1: raise Exception('Instance number must be > 0')
-    num_inst = len(settings.dejavu_configs) - 1
-    if args.fill_instance > num_inst:
-        logger.error('Instance number too high, maximum is ' + str(num_inst))
-        return
     logger.info('Filling instance no ' + str(args.fill_instance) + ' with duplicate candidates')
+    mud_inst = mud(args.fill_instance)
     queue = MPQueue()
     p = Process(target=fill_dupes, args=(args.fill_instance -1, queue))
     p.start()
-    mud_inst = mud(args.fill_instance)
     counter = 0
     while True:
         files = queue.get()
