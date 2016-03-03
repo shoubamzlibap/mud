@@ -467,11 +467,25 @@ class mud(object):
         """
         Get duplicate albums
         """
-        logger.info('Assembling duplicate Albums')
-        albums = collections.defaultdict(list)
+        logger.debug('Assembling duplicate Albums')
+        # assemble files that reside in the same directory
+        raw_albums = collections.defaultdict(list)
         for files in self.yield_duplicates():
-            albums[os.path.dirname(files[0]['file_path'])] += [
+            raw_albums[os.path.dirname(files[0]['file_path'])] += [
                 os.path.dirname(f['file_path']) for f in files[1:]]
+        # We only want to keep directories which share at least
+        # min_dup_per_dir duplicate files. While this must not
+        # nessessarly be an album, it is a strong indicator.
+        min_dup_per_dir = 2
+        albums = collections.defaultdict(list)
+        for directory,dup_dirs in raw_albums.iteritems():
+            occurence = collections.defaultdict(int)
+            for dup in dup_dirs:
+                occurence[dup] += 1
+            for num_dups_per_dir in occurence.values():
+                if num_dups_per_dir >= min_dup_per_dir:
+                    albums[directory] = occurence.keys()
+                    break
         return albums
 
     def print_dup_albums(self):
