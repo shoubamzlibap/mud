@@ -18,6 +18,7 @@ import logging
 from MySQLdb import IntegrityError
 import os
 import settings
+import sys
 import warnings
 
 from dejavu import Dejavu
@@ -306,10 +307,6 @@ class mud(object):
 
         inst_num: the number of the instance - 0 would be the primary instance, 1 the secondary, ...
         """
-        num_inst = len(settings.dejavu_configs) - 1
-        if inst_num > num_inst:
-            logger.error('Instance number too high, maximum is ' + str(num_inst))
-            return
         warnings.filterwarnings('ignore')
         dejavu_config = settings.dejavu_configs[inst_num]
         self.db = MudDatabase(**dejavu_config.get('database', {}))
@@ -533,6 +530,7 @@ def fill_dupes(inst_num, queue):
     
     inst_num: int, the number 
     """
+    logger.debug('Filling queue with duplicates from instance ' + str(inst_num))
     mud_inst = mud(inst_num)
     for files in mud_inst.yield_duplicates():
         queue.put(files)
@@ -546,16 +544,17 @@ def pass_duplicates(args):
     """
     if args.fill_instance < 1: raise Exception('Instance number must be > 0')
     logger.info('Filling instance no ' + str(args.fill_instance) + ' with duplicate candidates')
-    mud_inst = mud(args.fill_instance)
     queue = MPQueue()
     p = Process(target=fill_dupes, args=(args.fill_instance -1, queue))
     p.start()
+    mud_inst = mud(args.fill_instance) # don't put this above Process(), it won't work.
     counter = 0
     while True:
         files = queue.get()
         if not files:
             break
         for song_file in files:
+            logger.debug('Adding ' + song_file['file_path'] + ' to instance number ' + str(args.fill_instance))
             mud_inst.add_song_file(song_file['file_path'].decode('utf-8'))
             counter += 1
     p.join()
@@ -656,6 +655,10 @@ if __name__ == '__main__':
     if args.Version:
         print(VERSION)
         exit(0)
+    num_inst = len(settings.dejavu_configs) - 1
+    if args.instance_number > num_inst or args.fill_instance > num_inst:
+        print('ERROR: Instance number too high, maximum is ' + str(num_inst))
+        sys.exit(1)
     if args.fill_instance > 0:
         pass_duplicates(args)
     mud_inst = mud(args.instance_number)
