@@ -98,3 +98,8 @@ This value can be altered in settings.py (`fingerprint_limit`) to save even more
 that usually 5 seconds are enough to recognize a song. I have chosen 30 seconds as a default in order
 to account for songs with long intros, where not much significant is happening.
 
+
+## mud gui
+`mud_gui.py` is not really functional yet, it is in development.
+It makes use of [remi](https://github.com/dddomodossola/remi) as a gui library. Since remi is not yet api stable,
+I have added a snapshot of remi so that I can ensure `mud_gui.py` is compatible with the bundled remi version.
