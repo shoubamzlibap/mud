@@ -281,7 +281,7 @@ def main():
     dedup.dir_with_dupes = settings.music_base_dir
     dedup.dir_dupes_target = DUPES_DIR
     with MudConnector() as mud_connector:
-        start(MudGui, debug=True, address='10.23.23.53', port=8000, websocket_port=8001, start_browser=False)
+        start(MudGui, debug=True, address=cli_args.ip_address, port=8000, websocket_port=8001, start_browser=False)
         #start(MudApp, debug=True, address='10.23.23.53', port=8000, websocket_port=8001, start_browser=False,username='isaac', password='xxxxx' )
 
 if __name__ == '__main__':
