@@ -6,10 +6,10 @@ Currently just a poc - a gui to review the doublers.
 
 """
 #TODO:
-* get ip from server, but allow as argument
 * get rid of global variables
 * give message if no more songs in queue
 * create AudioPlayer from common class of VideoPlayer
+* create gui for accessing duplicate directories/Albums
 """
 
 # a place to move duplicates to
