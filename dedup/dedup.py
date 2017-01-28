@@ -43,33 +43,6 @@ Options:
     -t|--target <dir>      - directory where duplicates are to be moved. Defaults to """ + dir_dupes_target 
     exit(0)
 
-# parse args
-i = -1
-for arg in sys.argv:
-    i += 1
-    if arg == "-n" or arg == "--no-simulate":
-        simulate = False
-    if arg == '-v' or arg == '--verbose':
-        verbose = True
-    if arg == '-h' or arg == '--help':
-        print_help()
-    if arg == '-d' or arg == '--duplicates':
-        try:
-            dir_with_dupes = sys.argv[i + 1]
-        except IndexError:
-            dir_with_dupes = ''
-        if dir_with_dupes.startswith('-') or dir_with_dupes == '':
-            print '-d|--duplicates needs an argument'
-            exit(0)
-    if arg == '-t' or arg == '--target':
-        try:
-            dir_dupes_target = sys.argv[i + 1]
-        except IndexError:
-            dir_dupes_target = ''
-        if dir_dupes_target.startswith('-') or dir_dupes_target == '':
-            print '-t|--target needs an argument'
-            exit(0)
-
 def iprint(text):
     """
     print the provided text if verbose=True
@@ -175,6 +148,33 @@ def delete_empty_dirs(dir_list):
                 pass
 
 if __name__ == "__main__":
+    # parse args
+    i = -1
+    for arg in sys.argv:
+        i += 1
+        if arg == "-n" or arg == "--no-simulate":
+            simulate = False
+        if arg == '-v' or arg == '--verbose':
+            verbose = True
+        if arg == '-h' or arg == '--help':
+            print_help()
+        if arg == '-d' or arg == '--duplicates':
+            try:
+                dir_with_dupes = sys.argv[i + 1]
+            except IndexError:
+                dir_with_dupes = ''
+            if dir_with_dupes.startswith('-') or dir_with_dupes == '':
+                print '-d|--duplicates needs an argument'
+                exit(0)
+        if arg == '-t' or arg == '--target':
+            try:
+                dir_dupes_target = sys.argv[i + 1]
+            except IndexError:
+                dir_dupes_target = ''
+            if dir_dupes_target.startswith('-') or dir_dupes_target == '':
+                print '-t|--target needs an argument'
+                exit(0)
+    # actual dedup
     (recursive_file_list, dir_list) = get_recursive_file_list(dir_with_dupes)
     duplicates = get_duplicates(recursive_file_list)
     move_files(duplicates)

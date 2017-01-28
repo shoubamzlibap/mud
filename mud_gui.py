@@ -6,14 +6,16 @@ Currently just a poc - a gui to review the doublers.
 
 """
 #TODO:
-* test audio
+* get ip from server, but allow as argument
 * get rid of global variables
 * give message if no more songs in queue
+* create AudioPlayer from common class of VideoPlayer
 """
 
 # a place to move duplicates to
 DUPES_DIR = '/var/tmp/dups'
 
+import argparse
 import remi.gui as gui
 from remi import start, App
 from remi import Widget
@@ -22,6 +24,7 @@ import pickle
 from pprint import pprint
 from multiprocessing import Process
 from multiprocessing import Queue as MPQueue
+import socket
 import sys
 import logging
 import settings
@@ -81,24 +84,6 @@ class AudioPlayer(Widget):
         self.attributes['onended'] = "sendCallback('%s','%s');" \
             "event.stopPropagation();event.preventDefault();" % (self.identifier, self.EVENT_ONENDED)
         self.eventManager.register_listener(self.EVENT_ONENDED, callback, *userdata)
-
-class OldAudioPlayer(Widget):
-    @decorate_constructor_parameter_types([str, str])
-    def __init__(self, audio, poster=None, **kwargs):
-        """
-        Parameters
-        ----------
-        kwargs (width): An optional width for the widget (es. width=10 or width='10px' or width='10%').
-        kwargs (height): An optional height for the widget (es. height=10 or height='10px' or height='10%').
-        """
-        logger.debug('Creating Audio player for ' + audio)
-        super(AudioPlayer, self).__init__(**kwargs)
-        self.type = 'audio'
-        self.attributes['src'] = audio
-        self.attributes['type'] = 'audio/mpeg' # maybe this should be set according to file ending ...
-        self.attributes['preload'] = 'none' # one of auto, none, metadata
-        self.attributes['controls'] = None
-        self.attributes['poster'] = poster
 
 
 class MudConnector(object):
@@ -271,12 +256,27 @@ def horizontal_container():
     horizontalContainer.style['margin'] = '0px'
     return horizontalContainer       
 
+def guess_ip():
+    """Guess IP to listen on"""
+    return socket.gethostbyname(socket.gethostname())
+
+def parse_cli_args():
+    """
+    Parse cli args and return an object with the given args
+    """
+    parser = argparse.ArgumentParser(
+        description='Start web gui to present and discard the found doubles.')
+    guessed_ip = guess_ip()
+    parser.add_argument('-i', '--ip-address',
+                        type=str,
+                        default=guessed_ip,
+                        help='The ip address to listen on. Defaults to ' + guessed_ip)
+    return parser.parse_args()
+
 
 def main():
     """The main function"""
-    # starts the webserver
-    # optional parameters
-    # start(MyApp,address='127.0.0.1', port=8081, multiple_instance=False,enable_file_cache=True, update_interval=0.1, start_browser=True)
+    cli_args = parse_cli_args()
     dedup.simulate = True
     dedup.dir_with_dupes = settings.music_base_dir
     dedup.dir_dupes_target = DUPES_DIR
